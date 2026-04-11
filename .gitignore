@@ -1,0 +1,4 @@
+nano-ffmpeg
+*.exe
+dist/
+.DS_Store
