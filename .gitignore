@@ -2,3 +2,8 @@ nano-ffmpeg
 *.exe
 dist/
 .DS_Store
+
+# Website
+website/node_modules/
+website/.next/
+website/out/
