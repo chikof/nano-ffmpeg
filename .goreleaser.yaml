@@ -1,0 +1,55 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: ./main.go
+    binary: nano-ffmpeg
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X github.com/dgr8akki/nano-ffmpeg/cmd.Version={{.Version}}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^Merge"
+
+brews:
+  - repository:
+      owner: dgr8akki
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    name: nano-ffmpeg
+    description: "A beautiful terminal UI for ffmpeg"
+    homepage: "https://github.com/dgr8akki/nano-ffmpeg"
+    license: "MIT"
+    dependencies:
+      - name: ffmpeg
+    test: |
+      system "#{bin}/nano-ffmpeg", "--version"
+    install: |
+      bin.install "nano-ffmpeg"
