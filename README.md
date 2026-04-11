@@ -4,6 +4,7 @@
   <br>
   <em>Every ffmpeg feature. Zero flags to remember.</em>
   <br><br>
+  <a href="https://nano-ffmpeg.vercel.app">Website</a> &bull;
   <a href="#install">Install</a> &bull;
   <a href="#features">Features</a> &bull;
   <a href="#usage">Usage</a> &bull;
@@ -108,25 +109,29 @@ choco install ffmpeg
 
 ## Install
 
-**From source (recommended):**
+**Homebrew (recommended):**
+
+```bash
+brew install dgr8akki/tap/nano-ffmpeg
+```
+
+**Download binary:**
+
+Grab a prebuilt binary from [GitHub Releases](https://github.com/dgr8akki/nano-ffmpeg/releases/latest) for your platform (macOS, Linux, Windows).
+
+**Go install:**
 
 ```bash
 go install github.com/dgr8akki/nano-ffmpeg@latest
 ```
 
-**Build locally:**
+**Build from source:**
 
 ```bash
 git clone https://github.com/dgr8akki/nano-ffmpeg.git
 cd nano-ffmpeg
 go build -o nano-ffmpeg .
 ./nano-ffmpeg
-```
-
-**With version tag:**
-
-```bash
-go build -ldflags "-X github.com/dgr8akki/nano-ffmpeg/cmd.Version=v0.1.0" -o nano-ffmpeg .
 ```
 
 ## Usage
@@ -294,9 +299,15 @@ nano-ffmpeg/
 │       ├── frame.go                     # Top bar, bottom bar, status line
 │       ├── help.go                      # Context-sensitive help overlay
 │       └── responsive.go               # Terminal size detection
-├── docs/design/
-│   ├── 2026-04-11-nano-ffmpeg-design.md # Full design specification
-│   └── 2026-04-11-nano-ffmpeg-plan.md   # Implementation plan with progress tracker
+├── website/                             # Next.js marketing site (deployed to Vercel)
+│   ├── app/                             # Landing page, docs page
+│   └── components/                      # Navbar, Footer, TerminalDemo
+├── .github/workflows/
+│   ├── ci.yml                           # Build + vet + test on push/PR
+│   └── release.yml                      # GoReleaser on tag push
+├── .goreleaser.yaml                     # Cross-platform build + Homebrew tap config
+├── homebrew/nano-ffmpeg.rb              # Formula template (reference)
+├── docs/design/                         # Design spec and implementation plan
 ├── go.mod
 ├── go.sum
 └── README.md
