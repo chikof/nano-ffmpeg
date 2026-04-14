@@ -2,15 +2,17 @@ package settings
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/dgr8akki/nano-ffmpeg/internal/ffmpeg"
 	"github.com/dgr8akki/nano-ffmpeg/internal/screens"
 	"github.com/dgr8akki/nano-ffmpeg/internal/screens/operations"
 	"github.com/dgr8akki/nano-ffmpeg/internal/ui"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // FieldType defines the kind of form field.
@@ -235,7 +237,7 @@ func (m *Model) KeyHints() []ui.KeyHint {
 func (m *Model) outputPath() string {
 	ext := m.outputExtension()
 	base := strings.TrimSuffix(filepath.Base(m.filePath), filepath.Ext(m.filePath))
-	return filepath.Join(m.outputDir, base+"_"+strings.ToLower(strings.ReplaceAll(m.opName, " ", "_"))+"."+ext)
+	return filepath.Join(m.outputDir, base+"_"+operationSlug(m.opName)+"."+ext)
 }
 
 func (m *Model) outputExtension() string {
@@ -254,6 +256,12 @@ func (m *Model) outputExtension() string {
 			}
 		}
 		return "mp3"
+	case operations.OpMerge:
+		ext := filepath.Ext(m.filePath)
+		if ext != "" {
+			return ext[1:]
+		}
+		return "mp4"
 	case operations.OpGIF:
 		return "gif"
 	case operations.OpThumbnails:
@@ -279,6 +287,12 @@ func (m *Model) buildFields() []Field {
 		return m.trimFields()
 	case operations.OpCompress:
 		return m.compressFields()
+	case operations.OpMerge:
+		return m.mergeFields()
+	case operations.OpSubtitles:
+		return m.subtitlesFields()
+	case operations.OpWatermark:
+		return m.watermarkFields()
 	case operations.OpGIF:
 		return m.gifFields()
 	case operations.OpThumbnails:
@@ -434,6 +448,77 @@ func (m *Model) compressFields() []Field {
 	}
 }
 
+func (m *Model) mergeFields() []Field {
+	return []Field{
+		{
+			Label:    "Merge Mode",
+			Type:     FieldSelect,
+			Options:  []Option{{Label: "Concat (Copy Streams)", Value: "copy"}, {Label: "Concat (Re-encode)", Value: "reencode"}},
+			Value:    "copy",
+			Selected: 0,
+		},
+	}
+}
+
+func (m *Model) subtitlesFields() []Field {
+	streams := []Option{{Label: "Track 1", Value: "0"}}
+	if m.probeResult != nil {
+		subs := m.probeResult.SubtitleStreams()
+		if len(subs) > 0 {
+			streams = nil
+			for i, s := range subs {
+				label := fmt.Sprintf("Track %d (%s)", i+1, strings.ToUpper(s.CodecName))
+				if lang, ok := s.Tags["language"]; ok && lang != "" {
+					label += " " + strings.ToUpper(lang)
+				}
+				streams = append(streams, Option{Label: label, Value: fmt.Sprintf("%d", i)})
+			}
+		}
+	}
+
+	return []Field{
+		{
+			Label:    "Subtitle Mode",
+			Type:     FieldSelect,
+			Options:  []Option{{Label: "Burn-in", Value: "burn"}, {Label: "Embed", Value: "embed"}},
+			Value:    "burn",
+			Selected: 0,
+		},
+		{
+			Label:    "Subtitle Track",
+			Type:     FieldSelect,
+			Options:  streams,
+			Value:    streams[0].Value,
+			Selected: 0,
+		},
+	}
+}
+
+func (m *Model) watermarkFields() []Field {
+	return []Field{
+		{
+			Label:    "Position",
+			Type:     FieldSelect,
+			Options:  []Option{{Label: "Top Left", Value: "top-left"}, {Label: "Top Right", Value: "top-right"}, {Label: "Bottom Left", Value: "bottom-left"}, {Label: "Bottom Right", Value: "bottom-right"}, {Label: "Center", Value: "center"}},
+			Value:    "bottom-right",
+			Selected: 3,
+		},
+		{
+			Label:    "Opacity",
+			Type:     FieldSelect,
+			Options:  []Option{{Label: "25%", Value: "0.25"}, {Label: "50%", Value: "0.50"}, {Label: "75%", Value: "0.75"}},
+			Value:    "0.50",
+			Selected: 1,
+		},
+		{
+			Label:    "Size",
+			Type:     FieldSelect,
+			Options:  []Option{{Label: "Small", Value: "160x60"}, {Label: "Medium", Value: "240x90"}, {Label: "Large", Value: "320x120"}},
+			Value:    "240x90",
+			Selected: 1,
+		},
+	}
+}
 func (m *Model) gifFields() []Field {
 	return []Field{
 		{
@@ -516,6 +601,12 @@ func (m *Model) buildCommand() *ffmpeg.Command {
 	cmd := ffmpeg.NewCommand(m.ffmpegPath, m.filePath, output)
 
 	switch m.opID {
+	case operations.OpMerge:
+		m.buildMergeCommand(cmd)
+	case operations.OpSubtitles:
+		m.buildSubtitlesCommand(cmd)
+	case operations.OpWatermark:
+		m.buildWatermarkCommand(cmd)
 	case operations.OpConvert:
 		m.buildConvertCommand(cmd)
 	case operations.OpExtractAudio:
@@ -607,6 +698,69 @@ func (m *Model) buildCompressCommand(cmd *ffmpeg.Command) {
 	cmd.SetPreset(m.fieldValue("Preset"))
 	cmd.SetAudioCodec("copy")
 }
+func (m *Model) buildMergeCommand(cmd *ffmpeg.Command) {
+	listPath, err := m.writeMergeConcatFile()
+	if err != nil {
+		// Fallback to passthrough behavior if list generation fails.
+		cmd.SetVideoCodec("copy")
+		cmd.SetAudioCodec("copy")
+		return
+	}
+
+	// ffconcat scripts auto-select the concat demuxer when they begin with:
+	// "ffconcat version 1.0"
+	cmd.Input = listPath
+
+	if m.fieldValue("Merge Mode") == "reencode" {
+		cmd.SetVideoCodec("libx264")
+		cmd.SetAudioCodec("aac")
+		cmd.SetPreset("medium")
+		return
+	}
+	cmd.StreamCopy()
+}
+
+func (m *Model) buildSubtitlesCommand(cmd *ffmpeg.Command) {
+	mode := m.fieldValue("Subtitle Mode")
+	track := parseInt(m.fieldValue("Subtitle Track"))
+
+	switch mode {
+	case "embed":
+		cmd.AddArgs("-map", "0")
+		cmd.SetVideoCodec("copy")
+		cmd.SetAudioCodec("copy")
+		if m.outputExtension() == "mp4" {
+			cmd.AddArgs("-c:s", "mov_text")
+		} else {
+			cmd.AddArgs("-c:s", "copy")
+		}
+	default: // burn-in
+		if m.probeResult == nil || len(m.probeResult.SubtitleStreams()) == 0 {
+			// No subtitle streams detected; avoid building an invalid filter.
+			cmd.SetVideoCodec("copy")
+			cmd.SetAudioCodec("copy")
+			return
+		}
+		cmd.AddVideoFilter(fmt.Sprintf("subtitles='%s':si=%d", escapeSubtitlesPath(m.filePath), track))
+		cmd.SetAudioCodec("copy")
+	}
+}
+
+func (m *Model) buildWatermarkCommand(cmd *ffmpeg.Command) {
+	opacity := m.fieldValue("Opacity")
+	size := m.fieldValue("Size")
+	position := m.fieldValue("Position")
+
+	// Use a lavfi color source as the watermark layer and overlay it with position/opacity controls.
+	cmd.AddArgs("-f", "lavfi")
+	cmd.AddArgs("-i", fmt.Sprintf("color=c=white@%s:s=%s", opacity, size))
+	cmd.AddArgs("-filter_complex", fmt.Sprintf("[0:v][1:v]overlay=%s[v]", overlayPosition(position)))
+	cmd.AddArgs("-map", "[v]")
+	cmd.AddArgs("-map", "0:a?")
+	cmd.SetVideoCodec("libx264")
+	cmd.SetAudioCodec("copy")
+	cmd.SetPixelFormat("yuv420p")
+}
 
 func (m *Model) buildGIFCommand(cmd *ffmpeg.Command) {
 	fps := m.fieldValue("FPS")
@@ -693,4 +847,76 @@ func parseInt(s string) int {
 	var n int
 	fmt.Sscanf(s, "%d", &n)
 	return n
+}
+
+func operationSlug(name string) string {
+	slug := strings.ToLower(name)
+	replacer := strings.NewReplacer(" ", "_", "/", "_", "\\", "_", "-", "_")
+	slug = replacer.Replace(slug)
+	for strings.Contains(slug, "__") {
+		slug = strings.ReplaceAll(slug, "__", "_")
+	}
+	return strings.Trim(slug, "_")
+}
+
+func overlayPosition(position string) string {
+	switch position {
+	case "top-left":
+		return "20:20"
+	case "top-right":
+		return "W-w-20:20"
+	case "bottom-left":
+		return "20:H-h-20"
+	case "center":
+		return "(W-w)/2:(H-h)/2"
+	default: // bottom-right
+		return "W-w-20:H-h-20"
+	}
+}
+
+func escapeSubtitlesPath(path string) string {
+	escaped := strings.ReplaceAll(path, "\\", "\\\\")
+	escaped = strings.ReplaceAll(escaped, ":", "\\:")
+	escaped = strings.ReplaceAll(escaped, "'", "\\'")
+	return escaped
+}
+
+func (m *Model) writeMergeConcatFile() (string, error) {
+	sourcePath := filepath.Clean(m.filePath)
+	sourceDir := filepath.Dir(sourcePath)
+	sourceExt := strings.ToLower(filepath.Ext(sourcePath))
+
+	entries, err := os.ReadDir(sourceDir)
+	if err != nil {
+		return "", err
+	}
+
+	var files []string
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		if strings.ToLower(filepath.Ext(e.Name())) != sourceExt {
+			continue
+		}
+		files = append(files, e.Name())
+	}
+	if len(files) == 0 {
+		files = []string{filepath.Base(sourcePath)}
+	}
+	sort.Strings(files)
+
+	var b strings.Builder
+	b.WriteString("ffconcat version 1.0\n")
+	for _, f := range files {
+		b.WriteString("file '")
+		b.WriteString(strings.ReplaceAll(f, "'", "\\'"))
+		b.WriteString("'\n")
+	}
+
+	listPath := filepath.Join(sourceDir, ".nano-ffmpeg-merge.ffconcat")
+	if err := os.WriteFile(listPath, []byte(b.String()), 0644); err != nil {
+		return "", err
+	}
+	return listPath, nil
 }
