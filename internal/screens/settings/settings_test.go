@@ -241,6 +241,52 @@ func TestBuildCommands_NonStabilizeFilterRemainsSinglePass(t *testing.T) {
 	}
 }
 
+func TestBuildCommand_AudioFadeUsesDurationBasedStart(t *testing.T) {
+	probe := &ffmpeg.ProbeResult{
+		Format: ffmpeg.ProbeFormat{Duration: 12.5},
+	}
+	m := New(operations.OpAudio, "Audio", "/tmp/input.mp4", probe, "/usr/bin/ffmpeg")
+	if !setFieldSelectValue(m, "Operation", "fade") {
+		t.Fatal("failed to set audio operation to fade")
+	}
+
+	args := strings.Join(m.buildCommand().Build(), " ")
+	if !strings.Contains(args, "-af afade=t=in:st=0:d=2,afade=t=out:st=10.5:d=2") {
+		t.Fatalf("expected duration-based fade-out start time, got: %s", args)
+	}
+}
+
+func TestBuildCommand_AudioFadeClampsStartForShortOrUnknownDuration(t *testing.T) {
+	tests := []struct {
+		name  string
+		probe *ffmpeg.ProbeResult
+	}{
+		{
+			name:  "unknown duration",
+			probe: nil,
+		},
+		{
+			name: "short duration",
+			probe: &ffmpeg.ProbeResult{
+				Format: ffmpeg.ProbeFormat{Duration: 1.2},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := New(operations.OpAudio, "Audio", "/tmp/input.mp4", tt.probe, "/usr/bin/ffmpeg")
+			if !setFieldSelectValue(m, "Operation", "fade") {
+				t.Fatal("failed to set audio operation to fade")
+			}
+
+			args := strings.Join(m.buildCommand().Build(), " ")
+			if !strings.Contains(args, "-af afade=t=in:st=0:d=2,afade=t=out:st=0:d=2") {
+				t.Fatalf("expected clamped fade-out start time, got: %s", args)
+			}
+		})
+	}
+}
 func TestTrimFields_DefaultEndTimeUsesFFmpegTimestamp(t *testing.T) {
 	probe := &ffmpeg.ProbeResult{
 		Format: ffmpeg.ProbeFormat{Duration: 65},

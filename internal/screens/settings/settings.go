@@ -2,10 +2,12 @@ package settings
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -984,6 +986,7 @@ func (m *Model) buildThumbnailCommand(cmd *ffmpeg.Command) {
 
 func (m *Model) buildAudioCommand(cmd *ffmpeg.Command) {
 	op := m.fieldValue("Operation")
+	const fadeDuration = 2.0
 	switch op {
 	case "normalize":
 		cmd.AddAudioFilter("loudnorm")
@@ -997,12 +1000,35 @@ func (m *Model) buildAudioCommand(cmd *ffmpeg.Command) {
 		cmd.AddAudioFilter(fmt.Sprintf("volume=%sdB", db))
 		cmd.SetVideoCodec("copy")
 	case "fade":
-		cmd.AddAudioFilter("afade=t=in:st=0:d=2,afade=t=out:st=-2:d=2")
+		duration := 0.0
+		if m.probeResult != nil {
+			duration = m.probeResult.Format.Duration
+		}
+		fadeOutStart := clampFadeOutStart(duration, fadeDuration)
+		cmd.AddAudioFilter(fmt.Sprintf("afade=t=in:st=0:d=2,afade=t=out:st=%s:d=2", formatFFmpegSeconds(fadeOutStart)))
 		cmd.SetVideoCodec("copy")
 	case "remove":
 		cmd.NoAudio()
 		cmd.SetVideoCodec("copy")
 	}
+}
+
+func clampFadeOutStart(duration float64, fadeDuration float64) float64 {
+	if duration <= 0 || fadeDuration <= 0 || math.IsNaN(duration) || math.IsInf(duration, 0) {
+		return 0
+	}
+	start := duration - fadeDuration
+	if start < 0 {
+		return 0
+	}
+	return start
+}
+
+func formatFFmpegSeconds(seconds float64) string {
+	if seconds < 0 || math.IsNaN(seconds) || math.IsInf(seconds, 0) {
+		return "0"
+	}
+	return strconv.FormatFloat(seconds, 'f', -1, 64)
 }
 
 func (m *Model) buildFiltersCommand(cmd *ffmpeg.Command) {
