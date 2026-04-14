@@ -7,11 +7,11 @@ import (
 	"sync"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/dgr8akki/nano-ffmpeg/internal/ffmpeg"
 	"github.com/dgr8akki/nano-ffmpeg/internal/screens"
 	"github.com/dgr8akki/nano-ffmpeg/internal/ui"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // DoneMsg signals encoding complete.
@@ -189,6 +189,10 @@ func (m *Model) View() string {
 
 	if m.err != nil && m.done {
 		b.WriteString(ui.ErrorStyle.Render("  Encoding failed: " + m.err.Error()))
+		if detail := m.errorDetail(); detail != "" {
+			b.WriteString("\n")
+			b.WriteString(ui.MutedStyle.Render("  ffmpeg: " + detail))
+		}
 		b.WriteString("\n\n")
 		b.WriteString(ui.MutedStyle.Render("  Press Esc to go back"))
 		return b.String()
@@ -312,12 +316,12 @@ func (m *Model) renderStats() string {
 	}
 
 	lines := []string{
-		col1Style.Render("Elapsed   " + valStyle.Render(elapsed)) +
-			col2Style.Render("Frames    " + valStyle.Render(frames)),
-		col1Style.Render("ETA       " + valStyle.Render(eta)) +
-			col2Style.Render("Size      " + valStyle.Render(size)),
-		col1Style.Render("Speed     " + valStyle.Render(speed)) +
-			col2Style.Render("Bitrate   " + valStyle.Render(bitrate)),
+		col1Style.Render("Elapsed   "+valStyle.Render(elapsed)) +
+			col2Style.Render("Frames    "+valStyle.Render(frames)),
+		col1Style.Render("ETA       "+valStyle.Render(eta)) +
+			col2Style.Render("Size      "+valStyle.Render(size)),
+		col1Style.Render("Speed     "+valStyle.Render(speed)) +
+			col2Style.Render("Bitrate   "+valStyle.Render(bitrate)),
 		col1Style.Render("FPS       " + valStyle.Render(fps)),
 	}
 
@@ -371,4 +375,28 @@ func shortPath(path string) string {
 		return "..." + path[len(path)-47:]
 	}
 	return path
+}
+
+func (m *Model) errorDetail() string {
+	for i := len(m.logLines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(m.logLines[i])
+		if line == "" {
+			continue
+		}
+
+		lower := strings.ToLower(line)
+		if strings.Contains(lower, "error") ||
+			strings.Contains(lower, "invalid") ||
+			strings.Contains(lower, "failed") ||
+			strings.Contains(lower, "unable") ||
+			strings.Contains(lower, "cannot") ||
+			strings.Contains(lower, "not found") {
+			return line
+		}
+	}
+
+	if len(m.logLines) > 0 {
+		return strings.TrimSpace(m.logLines[len(m.logLines)-1])
+	}
+	return ""
 }

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -38,6 +39,7 @@ type Field struct {
 	Value    string   // current value
 	Selected int      // selected index for FieldSelect
 	Enabled  bool     // for FieldToggle
+	Cursor   int      // cursor position for FieldText
 }
 
 // ExecuteMsg tells the app to run the ffmpeg command.
@@ -84,6 +86,9 @@ func (m *Model) Update(msg tea.Msg) (screens.Screen, tea.Cmd) {
 		m.height = msg.Height
 
 	case tea.KeyMsg:
+		if m.handleTextInput(msg) {
+			return m, nil
+		}
 		switch msg.String() {
 		case "up", "k":
 			if m.cursor > 0 {
@@ -133,7 +138,99 @@ func (m *Model) adjustField(delta int) {
 		} else {
 			f.Value = "false"
 		}
+	case FieldText:
+		f.Cursor += delta
+		if f.Cursor < 0 {
+			f.Cursor = 0
+		}
+		if f.Cursor > len([]rune(f.Value)) {
+			f.Cursor = len([]rune(f.Value))
+		}
 	}
+}
+
+func (m *Model) handleTextInput(msg tea.KeyMsg) bool {
+	if m.cursor < 0 || m.cursor >= len(m.fields) {
+		return false
+	}
+	f := &m.fields[m.cursor]
+	if f.Type != FieldText {
+		return false
+	}
+
+	switch msg.Type {
+	case tea.KeyRunes:
+		if len(msg.Runes) == 0 {
+			return false
+		}
+		m.insertText(f, string(msg.Runes))
+		return true
+	case tea.KeyBackspace:
+		return m.backspaceText(f)
+	case tea.KeyDelete:
+		return m.deleteText(f)
+	case tea.KeyHome:
+		f.Cursor = 0
+		return true
+	case tea.KeyEnd:
+		f.Cursor = len([]rune(f.Value))
+		return true
+	}
+
+	switch msg.String() {
+	case "ctrl+h":
+		return m.backspaceText(f)
+	}
+
+	return false
+}
+
+func (m *Model) insertText(f *Field, s string) {
+	runes := []rune(f.Value)
+	cursor := clampCursor(f.Cursor, len(runes))
+	insert := []rune(s)
+
+	runes = append(runes[:cursor], append(insert, runes[cursor:]...)...)
+	f.Value = string(runes)
+	f.Cursor = cursor + len(insert)
+}
+
+func (m *Model) backspaceText(f *Field) bool {
+	runes := []rune(f.Value)
+	cursor := clampCursor(f.Cursor, len(runes))
+	if cursor == 0 {
+		f.Cursor = 0
+		return false
+	}
+
+	runes = append(runes[:cursor-1], runes[cursor:]...)
+	f.Value = string(runes)
+	f.Cursor = cursor - 1
+	return true
+}
+
+func (m *Model) deleteText(f *Field) bool {
+	runes := []rune(f.Value)
+	cursor := clampCursor(f.Cursor, len(runes))
+	if cursor >= len(runes) {
+		f.Cursor = len(runes)
+		return false
+	}
+
+	runes = append(runes[:cursor], runes[cursor+1:]...)
+	f.Value = string(runes)
+	f.Cursor = cursor
+	return true
+}
+
+func clampCursor(cursor, max int) int {
+	if cursor < 0 {
+		return 0
+	}
+	if cursor > max {
+		return max
+	}
+	return cursor
 }
 
 func (m *Model) View() string {
@@ -214,7 +311,11 @@ func (m *Model) renderField(f Field, selected bool) string {
 			value = lipgloss.NewStyle().Foreground(ui.ColorMuted).Render("[OFF]")
 		}
 	case FieldText:
-		value = lipgloss.NewStyle().Foreground(ui.ColorText).Render(f.Value)
+		display := f.Value
+		if selected {
+			display = textWithCursor(f.Value, f.Cursor)
+		}
+		value = lipgloss.NewStyle().Foreground(ui.ColorText).Render(display)
 	}
 
 	return indicator + label + " " + value
@@ -225,6 +326,16 @@ func (m *Model) Breadcrumb() string {
 }
 
 func (m *Model) KeyHints() []ui.KeyHint {
+	if m.cursor >= 0 && m.cursor < len(m.fields) && m.fields[m.cursor].Type == FieldText {
+		return []ui.KeyHint{
+			{Key: "↑↓", Desc: "Field"},
+			{Key: "Type", Desc: "Edit"},
+			{Key: "←→", Desc: "Cursor"},
+			{Key: "Bksp/Del", Desc: "Delete"},
+			{Key: "Enter", Desc: "Execute"},
+			{Key: "Esc", Desc: "Back"},
+		}
+	}
 	return []ui.KeyHint{
 		{Key: "↑↓", Desc: "Field"},
 		{Key: "←→", Desc: "Change"},
@@ -394,18 +505,20 @@ func (m *Model) resizeFields() []Field {
 func (m *Model) trimFields() []Field {
 	dur := ""
 	if m.probeResult != nil {
-		dur = m.probeResult.DurationString()
+		dur = ffmpeg.FormatDuration(time.Duration(m.probeResult.Format.Duration * float64(time.Second)))
 	}
 	return []Field{
 		{
-			Label: "Start Time",
-			Type:  FieldText,
-			Value: "00:00:00",
+			Label:  "Start Time",
+			Type:   FieldText,
+			Value:  "00:00:00",
+			Cursor: len([]rune("00:00:00")),
 		},
 		{
-			Label: "End Time",
-			Type:  FieldText,
-			Value: dur,
+			Label:  "End Time",
+			Type:   FieldText,
+			Value:  dur,
+			Cursor: len([]rune(dur)),
 		},
 		{
 			Label:   "Lossless Cut",
@@ -536,14 +649,16 @@ func (m *Model) gifFields() []Field {
 			Selected: 1,
 		},
 		{
-			Label: "Start Time",
-			Type:  FieldText,
-			Value: "00:00:00",
+			Label:  "Start Time",
+			Type:   FieldText,
+			Value:  "00:00:00",
+			Cursor: len([]rune("00:00:00")),
 		},
 		{
-			Label: "Duration",
-			Type:  FieldText,
-			Value: "5",
+			Label:  "Duration",
+			Type:   FieldText,
+			Value:  "5",
+			Cursor: len([]rune("5")),
 		},
 	}
 }
@@ -558,9 +673,10 @@ func (m *Model) thumbnailFields() []Field {
 			Selected: 0,
 		},
 		{
-			Label: "Timestamp",
-			Type:  FieldText,
-			Value: "00:00:05",
+			Label:  "Timestamp",
+			Type:   FieldText,
+			Value:  "00:00:05",
+			Cursor: len([]rune("00:00:05")),
 		},
 	}
 }
@@ -685,8 +801,12 @@ func (m *Model) buildResizeCommand(cmd *ffmpeg.Command) {
 }
 
 func (m *Model) buildTrimCommand(cmd *ffmpeg.Command) {
-	cmd.SetStartTime(m.fieldValue("Start Time"))
-	cmd.SetEndTime(m.fieldValue("End Time"))
+	if start := strings.TrimSpace(m.fieldValue("Start Time")); start != "" {
+		cmd.SetStartTime(start)
+	}
+	if end := strings.TrimSpace(m.fieldValue("End Time")); end != "" {
+		cmd.SetEndTime(end)
+	}
 	if m.fieldEnabled("Lossless Cut") {
 		cmd.StreamCopy()
 	}
@@ -847,6 +967,12 @@ func parseInt(s string) int {
 	var n int
 	fmt.Sscanf(s, "%d", &n)
 	return n
+}
+
+func textWithCursor(value string, cursor int) string {
+	runes := []rune(value)
+	cursor = clampCursor(cursor, len(runes))
+	return string(runes[:cursor]) + "│" + string(runes[cursor:])
 }
 
 func operationSlug(name string) string {

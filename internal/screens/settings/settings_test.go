@@ -1,6 +1,7 @@
 package settings
 
 import (
+	tea "github.com/charmbracelet/bubbletea"
 	"os"
 	"path/filepath"
 	"strings"
@@ -56,6 +57,15 @@ func TestBuildFields_FirstP0OpsDoNotFallbackToConvert(t *testing.T) {
 			}
 		})
 	}
+}
+
+func hasArg(args []string, needle string) bool {
+	for _, a := range args {
+		if a == needle {
+			return true
+		}
+	}
+	return false
 }
 
 func TestBuildCommand_MergeUsesConcatScript(t *testing.T) {
@@ -136,6 +146,73 @@ func TestBuildCommand_WatermarkUsesOverlayFilter(t *testing.T) {
 	if !strings.Contains(args, "-map [v]") || !strings.Contains(args, "-map 0:a?") {
 		t.Fatalf("expected mapped filtered video + optional audio, got: %s", args)
 	}
+}
+
+func TestTrimFields_DefaultEndTimeUsesFFmpegTimestamp(t *testing.T) {
+	probe := &ffmpeg.ProbeResult{
+		Format: ffmpeg.ProbeFormat{Duration: 65},
+	}
+
+	m := New(operations.OpTrim, "Trim", "/tmp/input.mp4", probe, "/usr/bin/ffmpeg")
+	if got := m.fieldValue("End Time"); got != "00:01:05" {
+		t.Fatalf("expected ffmpeg-compatible end time 00:01:05, got %q", got)
+	}
+}
+
+func TestTrimTextFieldsAreEditableFromKeyboardInput(t *testing.T) {
+	m := New(operations.OpTrim, "Trim", "/tmp/input.mp4", nil, "/usr/bin/ffmpeg")
+
+	if got := m.fieldValue("Start Time"); got != "00:00:00" {
+		t.Fatalf("expected default start time, got %q", got)
+	}
+
+	sendKey(m, tea.KeyMsg{Type: tea.KeyBackspace})
+	sendKey(m, tea.KeyMsg{Type: tea.KeyBackspace})
+	sendKey(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("15")})
+
+	if got := m.fieldValue("Start Time"); got != "00:00:15" {
+		t.Fatalf("expected edited start time 00:00:15, got %q", got)
+	}
+
+	sendKey(m, tea.KeyMsg{Type: tea.KeyLeft})
+	sendKey(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("9")})
+	if got := m.fieldValue("Start Time"); got != "00:00:195" {
+		t.Fatalf("expected left-move insertion in text field, got %q", got)
+	}
+	if got := m.fields[0].Cursor; got != len([]rune("00:00:195"))-1 {
+		t.Fatalf("expected cursor position to track text edits, got %d", got)
+	}
+}
+
+func TestBuildCommand_TrimUsesEditedTextFieldValues(t *testing.T) {
+	m := New(operations.OpTrim, "Trim", "/tmp/input.mp4", nil, "/usr/bin/ffmpeg")
+
+	sendKey(m, tea.KeyMsg{Type: tea.KeyBackspace})
+	sendKey(m, tea.KeyMsg{Type: tea.KeyBackspace})
+	sendKey(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("10")})
+
+	sendKey(m, tea.KeyMsg{Type: tea.KeyDown})
+	sendKey(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("00:00:45")})
+
+	args := strings.Join(m.buildCommand().Build(), " ")
+	if !strings.Contains(args, "-ss 00:00:10") {
+		t.Fatalf("expected edited start time in trim command, got: %s", args)
+	}
+	if !strings.Contains(args, "-to 00:00:45") {
+		t.Fatalf("expected edited end time in trim command, got: %s", args)
+	}
+}
+
+func TestBuildCommand_TrimSkipsEmptyEndTime(t *testing.T) {
+	m := New(operations.OpTrim, "Trim", "/tmp/input.mp4", nil, "/usr/bin/ffmpeg")
+	args := m.buildCommand().Build()
+	if hasArg(args, "-to") {
+		t.Fatalf("did not expect -to when end time is empty, got args: %v", args)
+	}
+}
+
+func sendKey(m *Model, key tea.KeyMsg) {
+	_, _ = m.Update(key)
 }
 
 func setFieldSelectValue(m *Model, label string, value string) bool {
