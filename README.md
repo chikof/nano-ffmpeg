@@ -83,6 +83,7 @@ Built for people who know they need ffmpeg but can't remember how to use it.
 ## Requirements
 
 - **ffmpeg** and **ffprobe** installed and available in `$PATH`
+- For full Stabilize support (`vidstabdetect`/`vidstabtransform`), use an ffmpeg build with `libvidstab` (Homebrew: `ffmpeg-full`)
 - Go 1.22+ (for building from source)
 - Terminal: 80x24 minimum
 
@@ -90,6 +91,9 @@ Built for people who know they need ffmpeg but can't remember how to use it.
 
 ```bash
 # macOS
+brew install ffmpeg-full
+
+# macOS (minimal build, Stabilize falls back to deshake)
 brew install ffmpeg
 
 # Ubuntu / Debian
@@ -114,6 +118,8 @@ choco install ffmpeg
 ```bash
 brew install dgr8akki/tap/nano-ffmpeg
 ```
+
+Homebrew installs `ffmpeg-full` as a dependency for the tap formula.
 
 **Download binary:**
 
@@ -170,7 +176,7 @@ Home  -->  File Picker  -->  Operations  -->  Settings  -->  Progress  -->  Resu
 | **Extract Thumbnails** | Grab frames as images | Single frame, 4x4 contact sheet, every N seconds |
 | **Watermark** | Image or text overlay | 9-point position grid, opacity control |
 | **Audio Adjustments** | Normalize, volume, fade | loudnorm, dB boost/reduce, fade in/out, remove audio |
-| **Video Filters** | Stabilize, crop, color, speed | vidstab, deinterlace, 2x/0.5x speed, rotate, flip |
+| **Video Filters** | Stabilize, crop, color, speed | vidstab (or deshake fallback), deinterlace, 2x/0.5x speed, rotate, flip |
 
 ## Progress Screen
 

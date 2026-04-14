@@ -86,6 +86,9 @@ func (r *Runner) Cancel() error {
 
 // CleanupOutput removes the partial output file.
 func (r *Runner) CleanupOutput() {
+	if r.outputPath == "" || r.outputPath == "-" {
+		return
+	}
 	os.Remove(r.outputPath)
 }
 

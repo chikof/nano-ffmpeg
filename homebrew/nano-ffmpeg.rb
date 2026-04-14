@@ -28,7 +28,7 @@ class NanoFfmpeg < Formula
     end
   end
 
-  depends_on "ffmpeg"
+  depends_on "ffmpeg-full"
 
   def install
     bin.install "nano-ffmpeg"

@@ -45,7 +45,9 @@ func (lb *lineBuffer) drain() []string {
 
 // Model is the progress screen model.
 type Model struct {
+	commands     []*ffmpeg.Command
 	runner       *ffmpeg.Runner
+	runnerMu     sync.Mutex
 	parser       *ffmpeg.ProgressParser
 	progress     *ffmpeg.Progress
 	buf          *lineBuffer
@@ -64,21 +66,23 @@ type Model struct {
 }
 
 // New creates a new progress screen.
-func New(cmd *ffmpeg.Command, totalDuration float64, inputSize int64) *Model {
-	runner, err := ffmpeg.NewRunner(cmd)
+func New(commands []*ffmpeg.Command, totalDuration float64, inputSize int64) *Model {
 
 	m := &Model{
-		runner:       runner,
+		commands:     commands,
 		parser:       ffmpeg.NewProgressParser(totalDuration),
 		buf:          &lineBuffer{},
 		logLines:     make([]string, 0, 100),
 		maxLogLines:  50,
-		inputFile:    cmd.Input,
-		outputFile:   cmd.Output,
 		inputSize:    inputSize,
-		err:          err,
 		spinnerChars: []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
 	}
+	if len(commands) == 0 {
+		m.err = fmt.Errorf("no ffmpeg command to execute")
+		return m
+	}
+	m.inputFile = commands[0].Input
+	m.outputFile = commands[len(commands)-1].Output
 	return m
 }
 
@@ -91,26 +95,69 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) startRunner() tea.Cmd {
 	return func() tea.Msg {
-		if err := m.runner.Start(); err != nil {
-			return DoneMsg{Err: err}
+		if len(m.commands) == 0 {
+			return DoneMsg{Err: fmt.Errorf("no ffmpeg command to execute")}
 		}
 
-		// Read stderr in this goroutine, buffer lines for tick to consume
-		scanner := m.runner.ScanStderr()
-		for scanner.Scan() {
-			line := scanner.Text()
-			if line != "" {
-				m.buf.add(line)
+		for i, cmd := range m.commands {
+			runner, err := ffmpeg.NewRunner(cmd)
+			if err != nil {
+				return DoneMsg{Err: err}
+			}
+			m.setRunner(runner)
+
+			if len(m.commands) > 1 {
+				m.buf.add(fmt.Sprintf("pass %d/%d started", i+1, len(m.commands)))
+			}
+
+			if err := runner.Start(); err != nil {
+				return DoneMsg{Err: err}
+			}
+
+			// Read stderr in this goroutine, buffer lines for tick to consume
+			scanner := runner.ScanStderr()
+			for scanner.Scan() {
+				line := scanner.Text()
+				if line != "" {
+					m.buf.add(line)
+				}
+			}
+			if err := scanner.Err(); err != nil {
+				return DoneMsg{Err: err}
+			}
+
+			if err := runner.Wait(); err != nil {
+				return DoneMsg{
+					Err:        err,
+					OutputPath: m.outputFile,
+					InputSize:  m.inputSize,
+				}
+			}
+
+			if len(m.commands) > 1 && i < len(m.commands)-1 {
+				m.buf.add(fmt.Sprintf("pass %d/%d complete", i+1, len(m.commands)))
 			}
 		}
 
-		err := m.runner.Wait()
+		m.setRunner(nil)
 		return DoneMsg{
-			Err:        err,
-			OutputPath: m.runner.OutputPath(),
+			Err:        nil,
+			OutputPath: m.outputFile,
 			InputSize:  m.inputSize,
 		}
 	}
+}
+
+func (m *Model) setRunner(r *ffmpeg.Runner) {
+	m.runnerMu.Lock()
+	defer m.runnerMu.Unlock()
+	m.runner = r
+}
+
+func (m *Model) activeRunner() *ffmpeg.Runner {
+	m.runnerMu.Lock()
+	defer m.runnerMu.Unlock()
+	return m.runner
 }
 
 func (m *Model) tick() tea.Cmd {
@@ -158,9 +205,9 @@ func (m *Model) Update(msg tea.Msg) (screens.Screen, tea.Cmd) {
 		if m.canceling {
 			switch msg.String() {
 			case "y":
-				if m.runner != nil {
-					m.runner.Cancel()
-					m.runner.CleanupOutput()
+				if runner := m.activeRunner(); runner != nil {
+					runner.Cancel()
+					runner.CleanupOutput()
 				}
 				m.done = true
 				return m, func() tea.Msg { return screens.BackMsg{} }

@@ -32,7 +32,13 @@ export default function DocsPage() {
             <p>
               That&apos;s it. The TUI guides you through file selection, operation
               picking, settings configuration, and encoding. You need{" "}
-              <Code>ffmpeg</Code> and <Code>ffprobe</Code> installed.
+              <Code>ffmpeg</Code> and <Code>ffprobe</Code> installed. For full
+              Stabilize support, use an ffmpeg build with vidstab
+              (Homebrew: <Code>ffmpeg-full</Code>).
+            </p>
+            <p>
+              If you install nano-ffmpeg via the Homebrew tap,{" "}
+              <Code>ffmpeg-full</Code> is installed as a dependency.
             </p>
             <h3 className="text-lg font-semibold text-white mt-6 mb-3">
               Install ffmpeg
@@ -40,6 +46,9 @@ export default function DocsPage() {
             <CodeBlock
               lines={[
                 "# macOS",
+                "$ brew install ffmpeg-full",
+                "",
+                "# macOS (minimal build; Stabilize uses deshake fallback)",
                 "$ brew install ffmpeg",
                 "",
                 "# Ubuntu / Debian",
@@ -98,7 +107,7 @@ export default function DocsPage() {
               <OpDoc name="Extract Thumbnails" desc="Single frame at a timestamp, 4x4 contact sheet grid, or one frame every N seconds." />
               <OpDoc name="Watermark" desc="Image overlay with 9-point position grid and opacity control. Text overlay with font, color, and size." />
               <OpDoc name="Audio Adjustments" desc="Normalize (loudnorm), volume boost/reduce (dB), fade in/out, or remove audio entirely." />
-              <OpDoc name="Video Filters" desc="Stabilize (vidstab), deinterlace, speed up/slow down, rotate, flip, crop, color adjustment." />
+              <OpDoc name="Video Filters" desc="Stabilize (vidstab when available, otherwise deshake fallback), deinterlace, speed up/slow down, rotate, flip, crop, color adjustment." />
             </div>
           </Section>
 
@@ -196,6 +205,7 @@ export default function DocsPage() {
               <Li>Extract audio from AAC track → pre-selects AAC (stream copy = instant)</Li>
               <Li>Trim → pre-fills total duration in the time input</Li>
               <Li>File has subtitles → offers extract or replace options</Li>
+              <Li>Stabilize → if vidstab is unavailable, automatically uses deshake and shows a fallback warning in Settings</Li>
             </div>
           </Section>
         </article>

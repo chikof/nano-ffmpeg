@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/dgr8akki/nano-ffmpeg/internal/ffmpeg"
 	"github.com/dgr8akki/nano-ffmpeg/internal/screens"
 	"github.com/dgr8akki/nano-ffmpeg/internal/screens/filepicker"
@@ -12,7 +13,6 @@ import (
 	"github.com/dgr8akki/nano-ffmpeg/internal/screens/result"
 	"github.com/dgr8akki/nano-ffmpeg/internal/screens/settings"
 	"github.com/dgr8akki/nano-ffmpeg/internal/ui"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 // Model is the top-level Bubble Tea model.
@@ -112,7 +112,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.selectedFile != nil {
 			totalDuration := m.selectedFile.ProbeResult.Format.Duration
 			inputSize := m.selectedFile.ProbeResult.Format.Size
-			ps := progress.New(msg.Command, totalDuration, inputSize)
+			ps := progress.New(msg.Commands, totalDuration, inputSize)
 			m.pushScreen(ps)
 			return m, m.screen.Init()
 		}

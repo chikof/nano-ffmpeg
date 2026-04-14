@@ -48,7 +48,7 @@ brews:
     homepage: "https://github.com/dgr8akki/nano-ffmpeg"
     license: "MIT"
     dependencies:
-      - name: ffmpeg
+      - name: ffmpeg-full
     test: |
       system "#{bin}/nano-ffmpeg", "--version"
     install: |

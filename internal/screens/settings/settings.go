@@ -3,6 +3,7 @@ package settings
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -44,21 +45,23 @@ type Field struct {
 
 // ExecuteMsg tells the app to run the ffmpeg command.
 type ExecuteMsg struct {
-	Command *ffmpeg.Command
+	Commands []*ffmpeg.Command
 }
 
 // Model is the settings screen model.
 type Model struct {
-	opID        operations.OperationID
-	opName      string
-	fields      []Field
-	cursor      int
-	filePath    string
-	outputDir   string
-	probeResult *ffmpeg.ProbeResult
-	ffmpegPath  string
-	width       int
-	height      int
+	opID         operations.OperationID
+	opName       string
+	fields       []Field
+	cursor       int
+	filePath     string
+	outputDir    string
+	probeResult  *ffmpeg.ProbeResult
+	ffmpegPath   string
+	vidstabOK    bool
+	vidstabKnown bool
+	width        int
+	height       int
 }
 
 // New creates a settings screen for the given operation and input file.
@@ -103,9 +106,9 @@ func (m *Model) Update(msg tea.Msg) (screens.Screen, tea.Cmd) {
 		case "right", "l":
 			m.adjustField(1)
 		case "enter":
-			cmd := m.buildCommand()
+			commands := m.buildCommands()
 			return m, func() tea.Msg {
-				return ExecuteMsg{Command: cmd}
+				return ExecuteMsg{Commands: commands}
 			}
 		case "esc":
 			return m, func() tea.Msg { return screens.BackMsg{} }
@@ -250,6 +253,11 @@ func (m *Model) View() string {
 		b.WriteString(m.renderField(f, selected))
 		b.WriteString("\n")
 	}
+	if notice := m.fallbackNotice(); notice != "" {
+		b.WriteString("\n")
+		b.WriteString(ui.WarningStyle.Render("  " + notice))
+		b.WriteString("\n")
+	}
 
 	// Output info
 	b.WriteString("\n")
@@ -259,11 +267,10 @@ func (m *Model) View() string {
 
 	// Command preview
 	b.WriteString("\n")
-	cmd := m.buildCommand()
 	cmdPreview := lipgloss.NewStyle().
 		Foreground(ui.ColorDim).
 		PaddingLeft(2).
-		Render("$ " + cmd.String())
+		Render("$ " + m.commandPreview())
 	previewBox := ui.PanelStyle.Render(
 		lipgloss.NewStyle().Foreground(ui.ColorPrimary).Bold(true).Render("Command Preview") +
 			"\n" + cmdPreview,
@@ -746,6 +753,67 @@ func (m *Model) buildCommand() *ffmpeg.Command {
 	return cmd
 }
 
+func (m *Model) buildCommands() []*ffmpeg.Command {
+	if m.opID == operations.OpFilters && m.fieldValue("Filter") == "vidstab" {
+		if !m.vidstabSupported() {
+			return []*ffmpeg.Command{m.buildDeshakeFallbackCommand()}
+		}
+		return m.buildStabilizeCommands()
+	}
+	return []*ffmpeg.Command{m.buildCommand()}
+}
+
+func (m *Model) buildStabilizeCommands() []*ffmpeg.Command {
+	transformPath := filepath.Join(m.outputDir, ".nano-ffmpeg-vidstab.trf")
+	escapedTransformPath := escapeSubtitlesPath(transformPath)
+
+	detect := ffmpeg.NewCommand(m.ffmpegPath, m.filePath, "-")
+	detect.AddVideoFilter(fmt.Sprintf("vidstabdetect=result='%s'", escapedTransformPath))
+	detect.NoAudio()
+	detect.AddArgs("-f", "null")
+
+	transform := ffmpeg.NewCommand(m.ffmpegPath, m.filePath, m.outputPath())
+	transform.AddVideoFilter(fmt.Sprintf("vidstabtransform=input='%s'", escapedTransformPath))
+	transform.SetAudioCodec("copy")
+
+	return []*ffmpeg.Command{detect, transform}
+}
+
+func (m *Model) buildDeshakeFallbackCommand() *ffmpeg.Command {
+	cmd := ffmpeg.NewCommand(m.ffmpegPath, m.filePath, m.outputPath())
+	cmd.AddVideoFilter("deshake")
+	cmd.SetAudioCodec("copy")
+	return cmd
+}
+
+func (m *Model) vidstabSupported() bool {
+	if m.vidstabKnown {
+		return m.vidstabOK
+	}
+	m.vidstabKnown = true
+	m.vidstabOK = hasFFmpegFilter(m.ffmpegPath, "vidstabdetect") && hasFFmpegFilter(m.ffmpegPath, "vidstabtransform")
+	return m.vidstabOK
+}
+
+func (m *Model) commandPreview() string {
+	commands := m.buildCommands()
+	if len(commands) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(commands))
+	for _, cmd := range commands {
+		parts = append(parts, cmd.String())
+	}
+	return strings.Join(parts, " && ")
+}
+
+func (m *Model) fallbackNotice() string {
+	if m.opID == operations.OpFilters && m.fieldValue("Filter") == "vidstab" && !m.vidstabSupported() {
+		return "vidstab filters unavailable in your ffmpeg build; using deshake fallback."
+	}
+	return ""
+}
+
 func (m *Model) fieldValue(label string) string {
 	for _, f := range m.fields {
 		if f.Label == label {
@@ -1005,6 +1073,25 @@ func escapeSubtitlesPath(path string) string {
 	escaped = strings.ReplaceAll(escaped, ":", "\\:")
 	escaped = strings.ReplaceAll(escaped, "'", "\\'")
 	return escaped
+}
+
+func hasFFmpegFilter(ffmpegPath string, filterName string) bool {
+	out, err := exec.Command(ffmpegPath, "-hide_banner", "-filters").Output()
+	if err != nil {
+		return false
+	}
+
+	lines := strings.Split(string(out), "\n")
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		if fields[1] == filterName {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *Model) writeMergeConcatFile() (string, error) {

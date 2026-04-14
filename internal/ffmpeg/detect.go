@@ -46,21 +46,26 @@ func findBinary(name string) (string, error) {
 	if err == nil {
 		return path, nil
 	}
-
-	// Fallback to common locations
-	commonPaths := []string{
-		"/usr/bin/" + name,
-		"/usr/local/bin/" + name,
-		"/opt/homebrew/bin/" + name,
-	}
-
-	for _, p := range commonPaths {
+	// Fallback to common and keg-only Homebrew locations.
+	for _, p := range fallbackBinaryPaths(name) {
 		if _, err := exec.LookPath(p); err == nil {
 			return p, nil
 		}
 	}
 
 	return "", fmt.Errorf("%s not found in PATH or common locations", name)
+}
+
+func fallbackBinaryPaths(name string) []string {
+	return []string{
+		"/usr/bin/" + name,
+		"/usr/local/bin/" + name,
+		"/opt/homebrew/bin/" + name,
+		"/usr/local/opt/ffmpeg/bin/" + name,
+		"/opt/homebrew/opt/ffmpeg/bin/" + name,
+		"/usr/local/opt/ffmpeg-full/bin/" + name,
+		"/opt/homebrew/opt/ffmpeg-full/bin/" + name,
+	}
 }
 
 var versionRe = regexp.MustCompile(`ffmpeg version (\S+)`)

@@ -54,7 +54,7 @@ const operations = [
   { name: "Extract Thumbnails", desc: "Single frame, grid, interval" },
   { name: "Watermark", desc: "Image or text overlay" },
   { name: "Audio Adjustments", desc: "Normalize, volume, fade" },
-  { name: "Video Filters", desc: "Stabilize, crop, speed, color" },
+  { name: "Video Filters", desc: "Stabilize (vidstab or deshake fallback), crop, speed, color" },
 ];
 
 export default function Home() {
@@ -303,7 +303,11 @@ export default function Home() {
 
           <p className="text-center text-sm text-[#6B7280] mt-12">
             Requires <span className="text-white">ffmpeg</span> and{" "}
-            <span className="text-white">ffprobe</span> installed and in your PATH.
+            <span className="text-white">ffprobe</span> installed and in your PATH.{" "}
+            The Homebrew tap install pulls{" "}
+            <span className="text-white">ffmpeg-full</span> automatically.{" "}
+            For full Stabilize support, use{" "}
+            <span className="text-white">ffmpeg-full</span> (includes vidstab).
           </p>
         </div>
       </section>

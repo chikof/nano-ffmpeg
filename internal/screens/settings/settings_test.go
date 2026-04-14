@@ -148,6 +148,99 @@ func TestBuildCommand_WatermarkUsesOverlayFilter(t *testing.T) {
 	}
 }
 
+func TestBuildCommands_StabilizeUsesTwoPassPipeline(t *testing.T) {
+	m := New(operations.OpFilters, "Video Filters", "/tmp/input.mp4", nil, "/usr/bin/ffmpeg")
+	m.vidstabKnown = true
+	m.vidstabOK = true
+	commands := m.buildCommands()
+	if len(commands) != 2 {
+		t.Fatalf("expected two stabilize commands, got %d", len(commands))
+	}
+
+	detectArgs := strings.Join(commands[0].Build(), " ")
+	if !strings.Contains(detectArgs, "vidstabdetect=result=") {
+		t.Fatalf("expected vidstabdetect in first pass, got: %s", detectArgs)
+	}
+	if !strings.Contains(detectArgs, "-f null -") {
+		t.Fatalf("expected null-output first pass, got: %s", detectArgs)
+	}
+	if !strings.Contains(detectArgs, ".nano-ffmpeg-vidstab.trf") {
+		t.Fatalf("expected shared transform file in first pass, got: %s", detectArgs)
+	}
+
+	transformArgs := strings.Join(commands[1].Build(), " ")
+	if !strings.Contains(transformArgs, "vidstabtransform=input=") {
+		t.Fatalf("expected vidstabtransform in second pass, got: %s", transformArgs)
+	}
+	if !strings.Contains(transformArgs, "-c:a copy") {
+		t.Fatalf("expected audio copy in second pass, got: %s", transformArgs)
+	}
+	if !strings.Contains(transformArgs, ".nano-ffmpeg-vidstab.trf") {
+		t.Fatalf("expected shared transform file in second pass, got: %s", transformArgs)
+	}
+}
+
+func TestBuildCommands_StabilizeFallsBackToDeshakeWhenVidstabUnavailable(t *testing.T) {
+	m := New(operations.OpFilters, "Video Filters", "/tmp/input.mp4", nil, "/usr/bin/ffmpeg")
+	m.vidstabKnown = true
+	m.vidstabOK = false
+
+	commands := m.buildCommands()
+	if len(commands) != 1 {
+		t.Fatalf("expected single fallback command, got %d", len(commands))
+	}
+	args := strings.Join(commands[0].Build(), " ")
+	if !strings.Contains(args, "-vf deshake") {
+		t.Fatalf("expected deshake fallback command, got: %s", args)
+	}
+	if strings.Contains(args, "vidstabdetect") || strings.Contains(args, "vidstabtransform") {
+		t.Fatalf("did not expect vidstab filters in fallback command, got: %s", args)
+	}
+}
+
+func TestFallbackNotice_ShownWhenVidstabUnavailable(t *testing.T) {
+	m := New(operations.OpFilters, "Video Filters", "/tmp/input.mp4", nil, "/usr/bin/ffmpeg")
+	m.vidstabKnown = true
+	m.vidstabOK = false
+
+	notice := m.fallbackNotice()
+	if notice == "" {
+		t.Fatal("expected fallback notice when vidstab is unavailable")
+	}
+	if !strings.Contains(notice, "deshake fallback") {
+		t.Fatalf("expected deshake fallback message, got: %q", notice)
+	}
+}
+
+func TestFallbackNotice_NotShownForNonStabilizeFilter(t *testing.T) {
+	m := New(operations.OpFilters, "Video Filters", "/tmp/input.mp4", nil, "/usr/bin/ffmpeg")
+	m.vidstabKnown = true
+	m.vidstabOK = false
+	if !setFieldSelectValue(m, "Filter", "yadif") {
+		t.Fatal("failed to switch filter to yadif")
+	}
+
+	if notice := m.fallbackNotice(); notice != "" {
+		t.Fatalf("did not expect fallback notice for non-stabilize filter, got: %q", notice)
+	}
+}
+
+func TestBuildCommands_NonStabilizeFilterRemainsSinglePass(t *testing.T) {
+	m := New(operations.OpFilters, "Video Filters", "/tmp/input.mp4", nil, "/usr/bin/ffmpeg")
+	if !setFieldSelectValue(m, "Filter", "yadif") {
+		t.Fatalf("failed to switch filter to yadif")
+	}
+
+	commands := m.buildCommands()
+	if len(commands) != 1 {
+		t.Fatalf("expected single command for non-stabilize filter, got %d", len(commands))
+	}
+	args := strings.Join(commands[0].Build(), " ")
+	if strings.Contains(args, "vidstabdetect") || strings.Contains(args, "vidstabtransform") {
+		t.Fatalf("did not expect stabilize filters for yadif command, got: %s", args)
+	}
+}
+
 func TestTrimFields_DefaultEndTimeUsesFFmpegTimestamp(t *testing.T) {
 	probe := &ffmpeg.ProbeResult{
 		Format: ffmpeg.ProbeFormat{Duration: 65},
