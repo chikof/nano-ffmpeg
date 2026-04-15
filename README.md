@@ -121,6 +121,12 @@ brew install dgr8akki/tap/nano-ffmpeg
 
 Homebrew installs `ffmpeg-full` as a dependency for the tap formula.
 
+**Arch Linux (AUR):**
+
+```bash
+yay -S nano-ffmpeg
+```
+
 **Download binary:**
 
 Grab a prebuilt binary from [GitHub Releases](https://github.com/dgr8akki/nano-ffmpeg/releases/latest) for your platform (macOS, Linux, Windows).
