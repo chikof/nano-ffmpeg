@@ -263,16 +263,28 @@ export default function Home() {
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
             <div className="p-6 rounded-xl border border-[#7C3AED]/30 bg-[#0d0d14]">
               <div className="text-xs text-[#7C3AED] font-bold mb-1 tracking-wider">
                 HOMEBREW
               </div>
-              <h3 className="text-white font-semibold mb-4">Recommended</h3>
+              <h3 className="text-white font-semibold mb-4">macOS / Linux</h3>
               <div className="bg-[#111827] rounded-lg p-3 font-mono text-xs">
                 <span className="text-[#9CA3AF]">$ </span>
                 <span className="text-[#06B6D4]">brew install </span>
                 <span className="text-white">dgr8akki/tap/nano-ffmpeg</span>
+              </div>
+            </div>
+
+            <div className="p-6 rounded-xl border border-[#7C3AED]/30 bg-[#0d0d14]">
+              <div className="text-xs text-[#7C3AED] font-bold mb-1 tracking-wider">
+                SCOOP
+              </div>
+              <h3 className="text-white font-semibold mb-4">Windows</h3>
+              <div className="bg-[#111827] rounded-lg p-3 font-mono text-xs space-y-1">
+                <div><span className="text-[#9CA3AF]">&gt; </span><span className="text-[#06B6D4]">scoop bucket add </span><span className="text-white">extras</span></div>
+                <div><span className="text-[#9CA3AF]">&gt; </span><span className="text-[#06B6D4]">scoop bucket add </span><span className="text-white break-all">nano-ffmpeg ...</span></div>
+                <div><span className="text-[#9CA3AF]">&gt; </span><span className="text-[#06B6D4]">scoop install </span><span className="text-white">nano-ffmpeg</span></div>
               </div>
             </div>
 
@@ -292,7 +304,7 @@ export default function Home() {
               <div className="text-xs text-[#22C55E] font-bold mb-1 tracking-wider">
                 BUILD
               </div>
-              <h3 className="text-white font-semibold mb-4">Clone & build</h3>
+              <h3 className="text-white font-semibold mb-4">Clone &amp; build</h3>
               <div className="bg-[#111827] rounded-lg p-3 font-mono text-xs space-y-1">
                 <div><span className="text-[#9CA3AF]">$ </span><span className="text-[#06B6D4]">git clone </span><span className="text-white break-all">github.com/dgr8akki/nano-ffmpeg</span></div>
                 <div><span className="text-[#9CA3AF]">$ </span><span className="text-[#06B6D4]">cd </span><span className="text-white">nano-ffmpeg</span></div>
@@ -304,9 +316,9 @@ export default function Home() {
           <p className="text-center text-sm text-[#6B7280] mt-12">
             Requires <span className="text-white">ffmpeg</span> and{" "}
             <span className="text-white">ffprobe</span> installed and in your PATH.{" "}
-            The Homebrew tap install pulls{" "}
-            <span className="text-white">ffmpeg-full</span> automatically.{" "}
-            For full Stabilize support, use{" "}
+            Both the Homebrew tap and the Scoop bucket pull{" "}
+            <span className="text-white">ffmpeg</span> automatically.{" "}
+            For full Stabilize support on macOS, use{" "}
             <span className="text-white">ffmpeg-full</span> (includes vidstab).
           </p>
         </div>

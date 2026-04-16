@@ -67,6 +67,14 @@ brew install dgr8akki/tap/nano-ffmpeg
 nano-ffmpeg
 ```
 
+```powershell
+# Windows (Scoop -- pulls ffmpeg from the extras bucket):
+scoop bucket add extras
+scoop bucket add nano-ffmpeg https://github.com/dgr8akki/scoop-bucket
+scoop install nano-ffmpeg
+nano-ffmpeg
+```
+
 ```bash
 # Any Go toolchain:
 go install github.com/dgr8akki/nano-ffmpeg@latest
@@ -139,21 +147,36 @@ sudo dnf install ffmpeg
 # Arch
 sudo pacman -S ffmpeg
 
-# Windows
+# Windows (Scoop, recommended -- matches what nano-ffmpeg pulls in)
+scoop bucket add extras
+scoop install extras/ffmpeg
+
+# Windows (winget)
 winget install ffmpeg
-# or
+
+# Windows (Chocolatey)
 choco install ffmpeg
 ```
 
 ## Install
 
-**Homebrew (recommended):**
+**Homebrew -- macOS / Linux (recommended):**
 
 ```bash
 brew install dgr8akki/tap/nano-ffmpeg
 ```
 
-Homebrew installs `ffmpeg-full` as a dependency for the tap formula.
+The Homebrew tap installs `ffmpeg-full` as a dependency so Stabilize, thumbnails, etc. work out of the box.
+
+**Scoop -- Windows (recommended):**
+
+```powershell
+scoop bucket add extras
+scoop bucket add nano-ffmpeg https://github.com/dgr8akki/scoop-bucket
+scoop install nano-ffmpeg
+```
+
+The Scoop manifest declares `extras/ffmpeg` as a dependency, so Scoop pulls ffmpeg/ffprobe for you. Installs are user-scope (no admin prompt).
 
 **Arch Linux (AUR):**
 
@@ -389,7 +412,7 @@ nano-ffmpeg/
 ├── .github/workflows/
 │   ├── ci.yml                           # Build + vet + test on push/PR
 │   └── release.yml                      # GoReleaser on tag push
-├── .goreleaser.yaml                     # Cross-platform build + Homebrew tap config
+├── .goreleaser.yaml                     # Cross-platform build + Homebrew tap + Scoop bucket config
 ├── homebrew/nano-ffmpeg.rb              # Formula template (reference)
 ├── docs/
 │   ├── design/                          # Original design spec and implementation plan
@@ -411,7 +434,7 @@ nano-ffmpeg/
 | Components | [Bubbles](https://github.com/charmbracelet/bubbles) | Pre-built TUI components |
 | CLI | [Cobra](https://github.com/spf13/cobra) | Argument parsing, `--version`, `--help` |
 | ffmpeg | `os/exec` | Shell out to the user's installed ffmpeg (no CGo bindings) |
-| Release | [GoReleaser](https://goreleaser.com/) | Cross-compile + GitHub Release + Homebrew tap |
+| Release | [GoReleaser](https://goreleaser.com/) | Cross-compile + GitHub Release + Homebrew tap + Scoop bucket |
 
 ## Testing
 
@@ -464,7 +487,7 @@ The script:
 2. Computes the next semver from the latest `v*` tag (or accepts an explicit version).
 3. Runs `go test ./...`, `go vet ./...`, and -- when installed -- `goreleaser check` plus a non-publishing snapshot build.
 4. Builds an annotated tag whose body is the `git log` since the previous tag.
-5. Pushes the tag, which triggers [`.github/workflows/release.yml`](.github/workflows/release.yml) to run GoReleaser, cut a GitHub Release, and update the Homebrew tap.
+5. Pushes the tag, which triggers [`.github/workflows/release.yml`](.github/workflows/release.yml) to run GoReleaser, cut a GitHub Release, update the Homebrew tap (`dgr8akki/homebrew-tap`), and update the Scoop bucket (`dgr8akki/scoop-bucket`). Both require a PAT stored as a repo secret (`HOMEBREW_TAP_TOKEN`, `SCOOP_BUCKET_TOKEN`).
 6. Tails the workflow with `gh run watch` when the GitHub CLI is installed.
 
 ## Future Roadmap

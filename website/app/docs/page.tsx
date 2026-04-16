@@ -60,9 +60,28 @@ export default function DocsPage() {
             <p>
               If you install nano-ffmpeg via the Homebrew tap,{" "}
               <Code>ffmpeg-full</Code> is installed as a dependency.
+              On Windows, the Scoop manifest declares <Code>extras/ffmpeg</Code>{" "}
+              as a dependency so ffmpeg is pulled automatically.
             </p>
             <h3 className="text-lg font-semibold text-white mt-6 mb-3">
-              Install ffmpeg
+              Install nano-ffmpeg
+            </h3>
+            <CodeBlock
+              lines={[
+                "# macOS / Linux (Homebrew)",
+                "$ brew install dgr8akki/tap/nano-ffmpeg",
+                "",
+                "# Windows (Scoop)",
+                "> scoop bucket add extras",
+                "> scoop bucket add nano-ffmpeg https://github.com/dgr8akki/scoop-bucket",
+                "> scoop install nano-ffmpeg",
+                "",
+                "# Any OS with Go",
+                "$ go install github.com/dgr8akki/nano-ffmpeg@latest",
+              ]}
+            />
+            <h3 className="text-lg font-semibold text-white mt-6 mb-3">
+              Install ffmpeg separately (if not using Homebrew tap / Scoop)
             </h3>
             <CodeBlock
               lines={[
@@ -78,8 +97,12 @@ export default function DocsPage() {
                 "# Fedora",
                 "$ sudo dnf install ffmpeg",
                 "",
-                "# Windows",
-                "$ winget install ffmpeg",
+                "# Windows (Scoop)",
+                "> scoop bucket add extras",
+                "> scoop install extras/ffmpeg",
+                "",
+                "# Windows (winget)",
+                "> winget install ffmpeg",
               ]}
             />
           </Section>

@@ -42,7 +42,7 @@ var rootCmd = &cobra.Command{
 			fmt.Fprintln(os.Stderr, "Install ffmpeg to use nano-ffmpeg:")
 			fmt.Fprintln(os.Stderr, "  macOS:   brew install ffmpeg")
 			fmt.Fprintln(os.Stderr, "  Ubuntu:  sudo apt install ffmpeg")
-			fmt.Fprintln(os.Stderr, "  Windows: winget install ffmpeg")
+			fmt.Fprintln(os.Stderr, "  Windows: scoop install extras/ffmpeg  (or: winget install ffmpeg)")
 			os.Exit(1)
 		}
 
