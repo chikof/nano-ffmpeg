@@ -225,14 +225,14 @@ export default function DocsPage() {
             <p>
               nano-ffmpeg runs <Code>ffprobe</Code> on your input file and uses
               parts of the result to avoid dead ends. The behaviors below are
-              what's actually wired up today:
+              what&apos;s actually wired up today:
             </p>
             <div className="mt-4 space-y-2">
-              <Li>Trim → the End Time field is pre-filled with the input's total duration</Li>
+              <Li>Trim → the End Time field is pre-filled with the input&apos;s total duration</Li>
               <Li>Add Subtitles → the Subtitle Track selector lists the subtitle streams detected in the input (codec and language, when present); if none are found, burn-in is disabled automatically</Li>
-              <Li>Audio Adjustments (fade) → the fade-out start is clamped to the input duration so short clips don't produce an invalid filter</Li>
+              <Li>Audio Adjustments (fade) → the fade-out start is clamped to the input duration so short clips don&apos;t produce an invalid filter</Li>
               <Li>Video Filters → if vidstab is unavailable, Stabilize automatically uses <Code>deshake</Code> and shows a fallback warning in Settings</Li>
-              <Li>File Picker → shows an inline ffprobe preview (format, duration, size, video codec/resolution/fps, audio codec/channels/sample-rate, subtitle track count) while you're browsing</Li>
+              <Li>File Picker → shows an inline ffprobe preview (format, duration, size, video codec/resolution/fps, audio codec/channels/sample-rate, subtitle track count) while you&apos;re browsing</Li>
             </div>
             <p className="mt-4">
               More ambitious defaults -- suggesting an output codec based on
