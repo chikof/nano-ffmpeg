@@ -51,9 +51,9 @@ Built for people who know they need ffmpeg but can't remember how to use it.
 
 **Core**
 - 12 ffmpeg operations accessible through guided, multi-screen workflows
-- Smart defaults driven by `ffprobe` -- analyzes your file and suggests optimal settings
-- Preset system for every operation: "High Quality", "Balanced", "Small File", "Web Optimized"
+- Pre-filled defaults for every operation so you can hit Enter without thinking about flags
 - Command preview on every settings screen -- see the exact `ffmpeg` command before it runs
+- Trim pre-fills the input's total duration; Stabilize automatically falls back to `deshake` if `vidstab` isn't in your ffmpeg build
 
 **Progress Tracking**
 - Gradient progress bar (green-to-cyan) with percentage
@@ -69,8 +69,8 @@ Built for people who know they need ffmpeg but can't remember how to use it.
 - Recent files list on the home screen
 
 **Intelligence**
-- Capability detection: probes your ffmpeg build on startup, only shows codecs/filters/formats you actually have
-- Hardware acceleration auto-detection: VideoToolbox (macOS), NVENC (NVIDIA), VAAPI (Linux)
+- Capability detection: probes your ffmpeg build on startup and reports codec/format/filter/HW-accel counts on the Home screen
+- Hardware acceleration detection: shows available accelerators (VideoToolbox, NVENC, VAAPI) on Home (note: detected accelerators are not yet applied to encode commands -- see `docs/future_scope.md`)
 - Human-readable error translation: converts cryptic ffmpeg errors into actionable messages
 - Capability cache at `~/.config/nano-ffmpeg/capabilities.json` (invalidated on version change)
 
@@ -157,6 +157,19 @@ Optional theme override for the current run:
 ```bash
 nano-ffmpeg --theme dark
 nano-ffmpeg --theme light
+nano-ffmpeg -t dark
+```
+
+Optional startup path override for the current run:
+
+```bash
+# Start file picker in this directory
+nano-ffmpeg --dir /path/to/folder
+nano-ffmpeg -d /path/to/folder
+
+# Skip file picker and jump to operations for this file
+nano-ffmpeg --dir /path/to/video.mp4
+nano-ffmpeg -d /path/to/video.mp4
 ```
 
 That's it. The TUI guides you through everything:
@@ -169,6 +182,8 @@ Home  -->  File Picker  -->  Operations  -->  Settings  -->  Progress  -->  Resu
 
 1. **Home** -- See your ffmpeg version, capabilities, and recent files. Pick an operation.
 2. **File Picker** -- Browse to your file or type a path. See metadata inline.
+   - `--dir <directory>` (or `-d <directory>`) opens File Picker in that directory.
+   - `--dir <file>` (or `-d <file>`) skips File Picker and starts directly in Operations with the file preloaded.
 3. **Operations** -- Choose what to do (convert, compress, trim, etc.).
 4. **Settings** -- Configure with presets or individual knobs. See the ffmpeg command live.
 5. **Progress** -- Watch encoding with a live progress bar, ETA, and stats.
@@ -178,18 +193,18 @@ Home  -->  File Picker  -->  Operations  -->  Settings  -->  Progress  -->  Resu
 
 | Operation | What it does | Key settings |
 |-----------|-------------|--------------|
-| **Convert Format** | Change container/codec | MP4, MKV, WebM, AVI, MOV; H.264, H.265, AV1, VP9 |
+| **Convert Format** | Change container/codec | MP4, MKV, WebM, AVI, MOV; H.264, H.265, AV1, VP9; CRF quality, preset speed, audio codec |
 | **Extract Audio** | Strip video, keep audio track | MP3, AAC, FLAC, WAV, OGG, Opus; bitrate presets (64k-320k) |
-| **Resize / Scale** | Change resolution | 4K, 1080p, 720p, 480p, 360p; aspect ratio handling |
-| **Trim / Cut** | Cut segments by time | Start/end time; lossless cut (stream copy) when possible |
-| **Compress** | Reduce file size | CRF quality slider; H.264/H.265/AV1; two-pass option |
-| **Merge / Concat** | Join multiple files | Reorder list; auto-detect format mismatches |
-| **Add Subtitles** | Burn-in or embed subs | SRT, ASS, SSA; font/size/position for burn-in |
-| **Create GIF/WebP** | Animated image from video | 10/15/24 fps; palette optimization; resolution presets |
-| **Extract Thumbnails** | Grab frames as images | Single frame, 4x4 contact sheet, every N seconds |
-| **Watermark** | Image or text overlay | 9-point position grid, opacity control |
+| **Resize / Scale** | Change output height | 4K, 1080p, 720p, 480p, 360p; H.264 or H.265 (aspect ratio field is shown but currently has no effect -- see `docs/future_scope.md`) |
+| **Trim / Cut** | Cut segments by time | Start/end time (end pre-filled from ffprobe); lossless cut (stream copy) toggle |
+| **Compress** | Reduce file size | CRF quality; H.264/H.265/AV1; preset speed (the Two-Pass toggle is shown but currently inert -- see `docs/future_scope.md`) |
+| **Merge / Concat** | Join multiple files in the same folder with the same extension | Alphabetical order; stream copy or re-encode to H.264/AAC |
+| **Add Subtitles** | Burn-in or embed existing subtitle streams from the input | Picks a subtitle track from the input file; font/size/position customization is not yet exposed |
+| **Create GIF** | Animated GIF from video | 10/15/24 fps; width presets; palette optimization (only GIF output today; WebP planned) |
+| **Extract Thumbnails** | Grab frames as images (PNG) | Single frame at a timestamp, 4x4 contact sheet, or every 5 seconds |
+| **Watermark** | Overlay a solid white color box | 5-position grid (corners + center), opacity, size presets (image and text overlays planned) |
 | **Audio Adjustments** | Normalize, volume, fade | loudnorm, dB boost/reduce, fade in/out, remove audio |
-| **Video Filters** | Stabilize, crop, color, speed | vidstab (or deshake fallback), deinterlace, 2x/0.5x speed, rotate, flip |
+| **Video Filters** | Stabilize, deinterlace, speed, rotate, flip | vidstab (or deshake fallback), yadif, 2x/0.5x speed, rotate 90°, horizontal/vertical flip |
 
 ## Progress Screen
 
@@ -245,9 +260,9 @@ Home  -->  File Picker  -->  Operations  -->  Settings  -->  Progress  -->  Resu
 
 | Key | Action |
 |-----|--------|
-| `←` / `→` | Change field value |
+| `←` / `→` | Change field value (select/toggle) or move the text cursor |
+| Typing | Edit text fields (Start Time, End Time, Duration, Timestamp) |
 | `Enter` | Execute the ffmpeg command |
-| `c` | Copy command to clipboard |
 
 ### Progress
 
@@ -283,7 +298,8 @@ Config is stored at `~/.config/nano-ffmpeg/config.json`:
 
 Capabilities are cached separately at `~/.config/nano-ffmpeg/capabilities.json` and auto-invalidated when your ffmpeg version changes.
 
-If you pass `--theme dark|light`, it overrides the config theme for that run.
+If you pass `--theme dark|light` (or `-t dark|light`), it overrides the config theme for that run.
+If you pass `--dir <directory|file>` (or `-d <directory|file>`), it overrides startup location for that run.
 
 ## Project Structure
 
@@ -368,7 +384,9 @@ Test coverage includes:
 
 ## Future Roadmap
 
-These are tracked but not in v0.1.0:
+See [`docs/future_scope.md`](docs/future_scope.md) for the full plan, including the feature gaps surfaced by the README/website sync audit (watermark image/text overlays, subtitle styling, crop/color filters, two-pass encoding, clipboard copy, capability-driven filtering, hardware-accelerated encoding, WebP output, aspect-ratio handling, merge reordering, smart defaults).
+
+Longer-term ideas tracked but not in v0.1.0:
 
 - [ ] Batch processing (apply same operation to multiple files)
 - [ ] Custom preset save/load

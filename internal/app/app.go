@@ -20,6 +20,7 @@ type Model struct {
 	ffmpegInfo   *ffmpeg.Info
 	caps         *ffmpeg.Capabilities
 	config       *Config
+	startDir     string
 	screen       screens.Screen
 	screenStack  []screens.Screen
 	frame        *ui.Frame
@@ -32,7 +33,15 @@ type Model struct {
 
 // RunOptions controls runtime behavior for app startup.
 type RunOptions struct {
-	Theme string
+	Theme       string
+	StartDir    string
+	InitialFile *InitialFile
+}
+
+// InitialFile is an optional startup file that skips file picker.
+type InitialFile struct {
+	Path        string
+	ProbeResult *ffmpeg.ProbeResult
 }
 
 // New creates the top-level app model.
@@ -44,13 +53,27 @@ func New(info *ffmpeg.Info, caps *ffmpeg.Capabilities, opts RunOptions) Model {
 	}
 	ui.SetTheme(theme)
 	homeScreen := home.New(info, caps, cfg.RecentFiles)
-	return Model{
+	model := Model{
 		ffmpegInfo: info,
 		caps:       caps,
 		config:     cfg,
+		startDir:   opts.StartDir,
 		screen:     homeScreen,
 		frame:      ui.NewFrame(80, 24),
 	}
+
+	if opts.InitialFile != nil && opts.InitialFile.Path != "" && opts.InitialFile.ProbeResult != nil {
+		model.selectedFile = &filepicker.FileSelectedMsg{
+			Path:        opts.InitialFile.Path,
+			ProbeResult: opts.InitialFile.ProbeResult,
+		}
+		model.statusLine = opts.InitialFile.ProbeResult.StatusLine()
+		model.config.AddRecentFile(opts.InitialFile.Path)
+		model.screen = operations.New()
+		model.screenStack = []screens.Screen{homeScreen}
+	}
+
+	return model
 }
 
 func (m Model) Init() tea.Cmd {
@@ -194,7 +217,7 @@ func (m Model) resolveScreen(msg screens.NavigateMsg) screens.Screen {
 	case screens.ScreenHome:
 		return home.New(m.ffmpegInfo, m.caps, m.config.RecentFiles)
 	case screens.ScreenFilePicker:
-		return filepicker.New(m.ffmpegInfo.FFprobePath, "")
+		return filepicker.New(m.ffmpegInfo.FFprobePath, m.startDir)
 	case screens.ScreenOperations:
 		return operations.New()
 	default:

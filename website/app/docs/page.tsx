@@ -39,6 +39,18 @@ export default function DocsPage() {
               ]}
             />
             <p>
+              You can also control the startup path:
+            </p>
+            <CodeBlock
+              lines={[
+                "# Start File Picker in this directory",
+                "$ nano-ffmpeg --dir /path/to/folder",
+                "",
+                "# Skip File Picker and preload this file",
+                "$ nano-ffmpeg --dir /path/to/video.mp4",
+              ]}
+            />
+            <p>
               That&apos;s it. The TUI guides you through file selection, operation
               picking, settings configuration, and encoding. You need{" "}
               <Code>ffmpeg</Code> and <Code>ffprobe</Code> installed. For full
@@ -90,7 +102,8 @@ export default function DocsPage() {
             </div>
             <ul className="space-y-2">
               <Li><strong>Home</strong> — ffmpeg version, capabilities, recent files, operation list</Li>
-              <Li><strong>File Picker</strong> — Browse filesystem or type a path. Inline ffprobe metadata preview.</Li>
+              <Li><strong>File Picker</strong> — Browse filesystem or type a path. Inline ffprobe metadata preview. Use <Code>--dir &lt;directory&gt;</Code> to change the startup directory.</Li>
+              <Li><strong>Direct file startup</strong> — Use <Code>--dir &lt;file&gt;</Code> to skip File Picker and start directly in Operations with the file preloaded.</Li>
               <Li><strong>Operations</strong> — Choose from 12 operations</Li>
               <Li><strong>Settings</strong> — Presets + individual knobs. Live command preview.</Li>
               <Li><strong>Progress</strong> — Live progress bar, ETA, stats, scrollable log</Li>
@@ -105,18 +118,18 @@ export default function DocsPage() {
           {/* Operations */}
           <Section id="operations" title="Operations">
             <div className="space-y-4">
-              <OpDoc name="Convert Format" desc="Change container format (MP4, MKV, WebM, AVI, MOV) and video codec (H.264, H.265, AV1, VP9). Quality presets from High to Tiny." />
-              <OpDoc name="Extract Audio" desc="Strip video track, keep audio. Output to MP3, AAC, FLAC, WAV, OGG, or Opus. Bitrate presets: CD Quality (320k), Podcast (128k), Lo-fi (64k). Uses stream copy when possible for instant, lossless extraction." />
-              <OpDoc name="Resize / Scale" desc="Scale to 4K, 1080p, 720p, 480p, or 360p. Aspect ratio options: keep original, force 16:9/4:3, crop to fit. Warns if you try to upscale." />
-              <OpDoc name="Trim / Cut" desc="Set start and end time in HH:MM:SS format. Lossless cut (stream copy) when possible. Pre-fills total duration from ffprobe." />
-              <OpDoc name="Compress" desc="CRF quality slider: Visually Lossless (18) to Heavy (32). Codec choice: H.264, H.265, AV1. Two-pass encoding option. Preset speed: slow/medium/fast." />
-              <OpDoc name="Merge / Concat" desc="Join multiple files together. Detects format mismatches and re-encodes when needed." />
-              <OpDoc name="Add Subtitles" desc="Burn-in (hardcode) or embed as soft track from SRT, ASS, or SSA files. Font, size, and position customization for burn-in." />
-              <OpDoc name="Create GIF/WebP" desc="Frame rate control (10/15/24 fps), resolution presets, palette optimization for GIF quality, start time and duration selection." />
-              <OpDoc name="Extract Thumbnails" desc="Single frame at a timestamp, 4x4 contact sheet grid, or one frame every N seconds." />
-              <OpDoc name="Watermark" desc="Image overlay with 9-point position grid and opacity control. Text overlay with font, color, and size." />
-              <OpDoc name="Audio Adjustments" desc="Normalize (loudnorm), volume boost/reduce (dB), fade in/out, or remove audio entirely." />
-              <OpDoc name="Video Filters" desc="Stabilize (vidstab when available, otherwise deshake fallback), deinterlace, speed up/slow down, rotate, flip, crop, color adjustment." />
+              <OpDoc name="Convert Format" desc="Change container format (MP4, MKV, WebM, AVI, MOV) and video codec (H.264, H.265, AV1, VP9). Quality presets from High to Tiny, preset speed slow/medium/fast/ultrafast, and audio codec (copy, AAC, MP3, Opus)." />
+              <OpDoc name="Extract Audio" desc="Strip video track, keep audio. Output to MP3, AAC, FLAC, WAV, OGG, or Opus. Bitrate presets from CD Quality (320k) down to Lo-fi (64k). The chosen format maps to a fixed encoder; there is no automatic stream copy today." />
+              <OpDoc name="Resize / Scale" desc="Scale to 4K, 1080p, 720p, 480p, or 360p height (width is auto-derived). Codec choice: H.264 or H.265. An aspect-ratio field is rendered but currently has no effect -- see the Future Scope doc." />
+              <OpDoc name="Trim / Cut" desc="Set start and end time in HH:MM:SS format. Lossless cut (stream copy) toggle. End time is pre-filled with the input's total duration from ffprobe." />
+              <OpDoc name="Compress" desc="CRF quality: Visually Lossless (18) to Heavy (32). Codec choice: H.264, H.265, AV1. Preset speed: slow/medium/fast. (A Two-Pass toggle is shown in the UI but is not yet wired up -- see the Future Scope doc.)" />
+              <OpDoc name="Merge / Concat" desc="Joins every file in the input's folder that shares the same extension, in alphabetical order, using ffmpeg's concat demuxer. Stream-copy or re-encode to H.264/AAC. No reorder UI yet." />
+              <OpDoc name="Add Subtitles" desc="Burn-in (hardcode) or soft-embed subtitle streams already present in the input file. Pick which subtitle track to use. Font, size, and position customization are not yet exposed." />
+              <OpDoc name="Create GIF" desc="Frame rate (10/15/24 fps), width presets, palette generation and paletteuse for quality, start time and duration selection. Output is GIF only today; WebP output is planned." />
+              <OpDoc name="Extract Thumbnails" desc="Single frame at a timestamp, 4x4 contact sheet, or one frame every 5 seconds. Output is PNG." />
+              <OpDoc name="Watermark" desc="Overlays a solid white color box. Five positions (four corners and center), opacity (25/50/75%), and size presets (small/medium/large). Image and text watermarks are planned." />
+              <OpDoc name="Audio Adjustments" desc="Normalize (loudnorm), volume up/down (dB), fade in + fade out (2s, auto-clamped to input duration), or remove audio entirely." />
+              <OpDoc name="Video Filters" desc="Stabilize (vidstab when available; falls back to deshake with a warning in Settings), deinterlace (yadif), speed 2x/0.5x, rotate 90°, horizontal/vertical flip. Crop and color filters are planned." />
             </div>
           </Section>
 
@@ -146,9 +159,9 @@ export default function DocsPage() {
 
             <h3 className="text-lg font-semibold text-white mt-6 mb-3">Settings</h3>
             <KeyTable keys={[
-              ["\u2190 / \u2192", "Change field value"],
+              ["\u2190 / \u2192", "Change select/toggle value or move the text cursor"],
+              ["Typing", "Edit text fields (Start/End Time, Duration, Timestamp)"],
               ["Enter", "Execute ffmpeg command"],
-              ["c", "Copy command to clipboard"],
             ]} />
 
             <h3 className="text-lg font-semibold text-white mt-6 mb-3">Progress</h3>
@@ -185,6 +198,9 @@ export default function DocsPage() {
               Passing <Code>--theme dark|light</Code> overrides the config theme for that run.
             </p>
             <p className="mt-4">
+              Passing <Code>--dir &lt;directory|file&gt;</Code> overrides startup location for that run.
+            </p>
+            <p className="mt-4">
               Capabilities are cached separately at{" "}
               <Code>~/.config/nano-ffmpeg/capabilities.json</Code> and
               auto-invalidated when your ffmpeg version changes.
@@ -208,17 +224,22 @@ export default function DocsPage() {
           <Section id="smart-defaults" title="Smart Defaults">
             <p>
               nano-ffmpeg runs <Code>ffprobe</Code> on your input file and uses
-              the results to set intelligent defaults:
+              parts of the result to avoid dead ends. The behaviors below are
+              what's actually wired up today:
             </p>
             <div className="mt-4 space-y-2">
-              <Li>4K H.265 input → suggests H.265 output, not H.264</Li>
-              <Li>Resize → grays out resolutions larger than source</Li>
-              <Li>Compress → calculates current bitrate, suggests CRF for ~50% reduction</Li>
-              <Li>Extract audio from AAC track → pre-selects AAC (stream copy = instant)</Li>
-              <Li>Trim → pre-fills total duration in the time input</Li>
-              <Li>File has subtitles → offers extract or replace options</Li>
-              <Li>Stabilize → if vidstab is unavailable, automatically uses deshake and shows a fallback warning in Settings</Li>
+              <Li>Trim → the End Time field is pre-filled with the input's total duration</Li>
+              <Li>Add Subtitles → the Subtitle Track selector lists the subtitle streams detected in the input (codec and language, when present); if none are found, burn-in is disabled automatically</Li>
+              <Li>Audio Adjustments (fade) → the fade-out start is clamped to the input duration so short clips don't produce an invalid filter</Li>
+              <Li>Video Filters → if vidstab is unavailable, Stabilize automatically uses <Code>deshake</Code> and shows a fallback warning in Settings</Li>
+              <Li>File Picker → shows an inline ffprobe preview (format, duration, size, video codec/resolution/fps, audio codec/channels/sample-rate, subtitle track count) while you're browsing</Li>
             </div>
+            <p className="mt-4">
+              More ambitious defaults -- suggesting an output codec based on
+              the input, graying out upscale targets, pre-selecting AAC for
+              stream copy, and so on -- are tracked in{" "}
+              <Code>docs/future_scope.md</Code>.
+            </p>
           </Section>
         </article>
       </div>

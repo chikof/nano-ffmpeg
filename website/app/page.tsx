@@ -17,8 +17,8 @@ const features = [
   },
   {
     icon: Zap,
-    title: "Smart Defaults",
-    desc: "Probes your file with ffprobe and suggests optimal codec, bitrate, and resolution settings.",
+    title: "Sensible Defaults",
+    desc: "Every operation opens with pre-filled fields so you can hit Enter without thinking about flags. Trim pre-fills the input's total duration.",
   },
   {
     icon: BarChart3,
@@ -28,12 +28,12 @@ const features = [
   {
     icon: Settings,
     title: "Command Preview",
-    desc: "See the exact ffmpeg command before it runs. Copy to clipboard with a single keypress.",
+    desc: "See the exact ffmpeg command on every settings screen before it runs -- no hidden flags.",
   },
   {
     icon: Cpu,
-    title: "Hardware Accel",
-    desc: "Auto-detects VideoToolbox (macOS), NVENC (NVIDIA), and VAAPI (Linux) for faster encoding.",
+    title: "Capability Report",
+    desc: "Probes your ffmpeg build on startup and shows the codec, format, filter, and hardware-accel counts on the Home screen.",
   },
   {
     icon: Check,
@@ -43,18 +43,18 @@ const features = [
 ];
 
 const operations = [
-  { name: "Convert Format", desc: "MP4, MKV, WebM, AVI, MOV + codec selection" },
+  { name: "Convert Format", desc: "MP4, MKV, WebM, AVI, MOV + H.264/H.265/AV1/VP9" },
   { name: "Extract Audio", desc: "MP3, AAC, FLAC, WAV, OGG, Opus" },
-  { name: "Resize / Scale", desc: "4K to 360p, aspect ratio handling" },
-  { name: "Trim / Cut", desc: "Start/end time, lossless cut" },
-  { name: "Compress", desc: "CRF slider, H.264/H.265/AV1" },
-  { name: "Merge / Concat", desc: "Join files, detect mismatches" },
-  { name: "Add Subtitles", desc: "Burn-in or soft embed SRT/ASS" },
-  { name: "Create GIF/WebP", desc: "FPS, palette optimization" },
+  { name: "Resize / Scale", desc: "Height presets from 4K to 360p" },
+  { name: "Trim / Cut", desc: "Start/end time, lossless cut toggle" },
+  { name: "Compress", desc: "CRF slider, H.264/H.265/AV1, preset speed" },
+  { name: "Merge / Concat", desc: "Stream copy or re-encode same-extension siblings" },
+  { name: "Add Subtitles", desc: "Burn-in or soft-embed existing subtitle tracks" },
+  { name: "Create GIF", desc: "FPS, width, palette optimization" },
   { name: "Extract Thumbnails", desc: "Single frame, grid, interval" },
-  { name: "Watermark", desc: "Image or text overlay" },
-  { name: "Audio Adjustments", desc: "Normalize, volume, fade" },
-  { name: "Video Filters", desc: "Stabilize (vidstab or deshake fallback), crop, speed, color" },
+  { name: "Watermark", desc: "Solid color box overlay, position and opacity" },
+  { name: "Audio Adjustments", desc: "Normalize, volume, fade, remove" },
+  { name: "Video Filters", desc: "Stabilize (vidstab or deshake), deinterlace, speed, rotate, flip" },
 ];
 
 export default function Home() {
