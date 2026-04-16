@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"syscall"
 )
 
 // RunnerMsg types for Bubble Tea message passing.
@@ -36,6 +35,10 @@ type Runner struct {
 // NewRunner creates a runner for the given command.
 func NewRunner(ffmpegCmd *Command) (*Runner, error) {
 	cmd := ffmpegCmd.Exec()
+
+	// Put the child in its own process group so Cancel can signal the whole
+	// tree (ffmpeg, any shell wrappers, spawned children). No-op on Windows.
+	configureProcessGroup(cmd)
 
 	// Capture stderr (ffmpeg outputs progress there)
 	stderr, err := cmd.StderrPipe()
@@ -76,12 +79,14 @@ func (r *Runner) Wait() error {
 	return r.cmd.Wait()
 }
 
-// Cancel sends SIGINT to the process.
+// Cancel asks the running process (and its process group, on POSIX) to stop
+// gracefully by delivering an interrupt signal. It is a no-op if Start has not
+// yet been called or the process has already exited.
 func (r *Runner) Cancel() error {
-	if r.cmd.Process != nil {
-		return r.cmd.Process.Signal(syscall.SIGINT)
+	if r.cmd == nil || r.cmd.Process == nil {
+		return nil
 	}
-	return nil
+	return sendInterrupt(r.cmd)
 }
 
 // CleanupOutput removes the partial output file.

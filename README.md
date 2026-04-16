@@ -5,12 +5,22 @@
   <em>Every ffmpeg feature. Zero flags to remember.</em>
   <br><br>
   <a href="https://nano-ffmpeg.vercel.app">Website</a> &bull;
+  <a href="#quick-start">Quick Start</a> &bull;
   <a href="#install">Install</a> &bull;
   <a href="#features">Features</a> &bull;
   <a href="#usage">Usage</a> &bull;
+  <a href="#cli-options">CLI Options</a> &bull;
   <a href="#operations">Operations</a> &bull;
   <a href="#keybindings">Keybindings</a> &bull;
+  <a href="#releasing">Releasing</a> &bull;
   <a href="#contributing">Contributing</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/dgr8akki/nano-ffmpeg/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/dgr8akki/nano-ffmpeg/ci.yml?branch=main&label=CI" alt="CI"></a>
+  <a href="https://github.com/dgr8akki/nano-ffmpeg/releases/latest"><img src="https://img.shields.io/github/v/release/dgr8akki/nano-ffmpeg?sort=semver" alt="Latest release"></a>
+  <a href="go.mod"><img src="https://img.shields.io/github/go-mod/go-version/dgr8akki/nano-ffmpeg" alt="Go version"></a>
+  <a href="#license"><img src="https://img.shields.io/github/license/dgr8akki/nano-ffmpeg" alt="License"></a>
 </p>
 
 ---
@@ -46,6 +56,30 @@ Built for people who know they need ffmpeg but can't remember how to use it.
 │  ↑↓ Navigate   Enter Select   q Quit   ? Help                      │
 ╰─────────────────────────────────────────────────────────────────────╯
 ```
+
+## Quick Start
+
+If you already have `ffmpeg` and `ffprobe` on your `PATH`:
+
+```bash
+# macOS (Homebrew tap -- also pulls ffmpeg-full):
+brew install dgr8akki/tap/nano-ffmpeg
+nano-ffmpeg
+```
+
+```bash
+# Any Go toolchain:
+go install github.com/dgr8akki/nano-ffmpeg@latest
+nano-ffmpeg
+```
+
+Jump straight into a specific file without clicking through the file picker:
+
+```bash
+nano-ffmpeg -d ~/Videos/interview.mp4
+```
+
+The TUI takes you from there: pick an operation, tweak the pre-filled defaults, hit Enter. See [Usage](#usage) for the full flow and [CLI Options](#cli-options) for every flag.
 
 ## Features
 
@@ -148,31 +182,13 @@ go build -o nano-ffmpeg .
 
 ## Usage
 
+Run with no arguments to open the TUI:
+
 ```bash
 nano-ffmpeg
 ```
 
-Optional theme override for the current run:
-
-```bash
-nano-ffmpeg --theme dark
-nano-ffmpeg --theme light
-nano-ffmpeg -t dark
-```
-
-Optional startup path override for the current run:
-
-```bash
-# Start file picker in this directory
-nano-ffmpeg --dir /path/to/folder
-nano-ffmpeg -d /path/to/folder
-
-# Skip file picker and jump to operations for this file
-nano-ffmpeg --dir /path/to/video.mp4
-nano-ffmpeg -d /path/to/video.mp4
-```
-
-That's it. The TUI guides you through everything:
+The TUI guides you through the full flow:
 
 ```
 Home  -->  File Picker  -->  Operations  -->  Settings  -->  Progress  -->  Result
@@ -182,12 +198,36 @@ Home  -->  File Picker  -->  Operations  -->  Settings  -->  Progress  -->  Resu
 
 1. **Home** -- See your ffmpeg version, capabilities, and recent files. Pick an operation.
 2. **File Picker** -- Browse to your file or type a path. See metadata inline.
-   - `--dir <directory>` (or `-d <directory>`) opens File Picker in that directory.
-   - `--dir <file>` (or `-d <file>`) skips File Picker and starts directly in Operations with the file preloaded.
 3. **Operations** -- Choose what to do (convert, compress, trim, etc.).
-4. **Settings** -- Configure with presets or individual knobs. See the ffmpeg command live.
+4. **Settings** -- Configure with pre-filled defaults. See the ffmpeg command live.
 5. **Progress** -- Watch encoding with a live progress bar, ETA, and stats.
 6. **Result** -- See output path, before/after size comparison. Do another or quit.
+
+All flags are optional; see [CLI Options](#cli-options) for the full list and examples.
+
+## CLI Options
+
+| Flag | Short | Value | Description |
+|------|-------|-------|-------------|
+| `--theme` | `-t` | `dark` \| `light` | Theme override for this run. Without the flag, the theme from `~/.config/nano-ffmpeg/config.json` is used. |
+| `--dir` | `-d` | `<directory>` | Open the File Picker pre-focused on this directory. |
+| `--dir` | `-d` | `<file>` | Skip the File Picker and jump straight to Operations with this file preloaded (the file is probed and added to the recent-files list). |
+| `--version` | -- | -- | Print the version and exit. |
+| `--help` | `-h` | -- | Print usage and exit. |
+
+Examples:
+
+```bash
+# Force a theme for a single run
+nano-ffmpeg --theme light
+nano-ffmpeg -t dark
+
+# Open the File Picker at a folder
+nano-ffmpeg -d ~/Videos
+
+# Skip the File Picker entirely
+nano-ffmpeg -d ~/Videos/interview.mp4
+```
 
 ## Operations
 
@@ -307,44 +347,55 @@ If you pass `--dir <directory|file>` (or `-d <directory|file>`), it overrides st
 nano-ffmpeg/
 ├── main.go                              # Entry point
 ├── cmd/
-│   └── root.go                          # Cobra CLI, version flag
+│   ├── root.go                          # Cobra CLI, --theme/--dir/--version flags
+│   └── root_test.go
 ├── internal/
 │   ├── app/
 │   │   ├── app.go                       # Top-level Bubble Tea model, screen router
-│   │   └── config.go                    # Config load/save, recent files
+│   │   ├── config.go                    # Config load/save, recent files
+│   │   ├── app_test.go
+│   │   └── config_test.go
 │   ├── ffmpeg/
 │   │   ├── detect.go                    # Find ffmpeg/ffprobe binaries, parse version
-│   │   ├── capabilities.go             # Probe codecs, formats, filters, hwaccels; cache
+│   │   ├── capabilities.go              # Probe codecs, formats, filters, hwaccels; cache
 │   │   ├── probe.go                     # Run ffprobe, parse JSON into Go structs
 │   │   ├── command.go                   # Struct-based ffmpeg command builder
 │   │   ├── runner.go                    # Process management, stderr streaming
 │   │   ├── progress.go                  # Parse ffmpeg progress output, ETA calculation
-│   │   └── errors.go                    # Translate ffmpeg errors to human-readable
+│   │   ├── errors.go                    # Translate ffmpeg errors to human-readable
+│   │   └── *_test.go                    # Full unit suite per file above
 │   ├── preset/
-│   │   └── preset.go                    # Quality, resolution, format presets
+│   │   ├── preset.go                    # Quality / resolution / format preset catalog
+│   │   └── preset_test.go
 │   ├── screens/
 │   │   ├── screen.go                    # Screen interface definition
 │   │   ├── messages.go                  # Shared navigation/status messages
-│   │   ├── home/home.go                 # Dashboard: ffmpeg info, recent files, operation list
+│   │   ├── screens_test.go
+│   │   ├── home/home.go                 # Dashboard: ffmpeg info, recent files, operations
 │   │   ├── filepicker/filepicker.go     # File browser + path input + ffprobe preview
 │   │   ├── operations/operations.go     # Operation category picker
-│   │   ├── settings/settings.go         # Dynamic form per operation, command preview
-│   │   ├── progress/progress.go         # Progress bar, stats, live log, cancel
+│   │   ├── settings/settings.go         # Dynamic form per operation, live command preview
+│   │   ├── progress/progress.go         # Progress bar, stats, live log, cancel flow
 │   │   └── result/result.go             # Output summary, size comparison
 │   └── ui/
-│       ├── theme.go                     # Color palette and shared styles
+│       ├── theme.go                     # Color palette and shared styles (dark/light)
 │       ├── frame.go                     # Top bar, bottom bar, status line
 │       ├── help.go                      # Context-sensitive help overlay
-│       └── responsive.go               # Terminal size detection
+│       └── responsive.go                # Terminal size detection
 ├── website/                             # Next.js marketing site (deployed to Vercel)
-│   ├── app/                             # Landing page, docs page
-│   └── components/                      # Navbar, Footer, TerminalDemo
+│   ├── app/                             # Landing page + /docs page
+│   ├── components/                      # Navbar, Footer, TerminalDemo
+│   └── README.md                        # Contributor doc for the site
 ├── .github/workflows/
 │   ├── ci.yml                           # Build + vet + test on push/PR
 │   └── release.yml                      # GoReleaser on tag push
 ├── .goreleaser.yaml                     # Cross-platform build + Homebrew tap config
 ├── homebrew/nano-ffmpeg.rb              # Formula template (reference)
-├── docs/design/                         # Design spec and implementation plan
+├── docs/
+│   ├── design/                          # Original design spec and implementation plan
+│   ├── future_scope.md                  # Gap-closing roadmap (see Future Roadmap below)
+│   ├── release.sh                       # Single-command tag + push + workflow watch
+│   └── Makefile                         # `make release[-minor|-major]` wrappers
 ├── go.mod
 ├── go.sum
 └── README.md
@@ -359,28 +410,62 @@ nano-ffmpeg/
 | Styling | [Lip Gloss](https://github.com/charmbracelet/lipgloss) | Composable terminal styles |
 | Components | [Bubbles](https://github.com/charmbracelet/bubbles) | Pre-built TUI components |
 | CLI | [Cobra](https://github.com/spf13/cobra) | Argument parsing, `--version`, `--help` |
-| ffmpeg | `os/exec` | Shell out to user's installed ffmpeg (no CGo bindings) |
+| ffmpeg | `os/exec` | Shell out to the user's installed ffmpeg (no CGo bindings) |
+| Release | [GoReleaser](https://goreleaser.com/) | Cross-compile + GitHub Release + Homebrew tap |
 
 ## Testing
 
 ```bash
-# Run all tests
+# Fast path
 go test ./...
 
-# Run with verbose output
+# Verbose
 go test ./... -v
 
-# Run specific package tests
+# A single package
 go test ./internal/ffmpeg/ -v
-go test ./internal/app/ -v
+go test ./internal/screens/settings/ -v
+
+# Ignore the cache
+go test -count=1 ./...
 ```
 
-Test coverage includes:
-- **Command builder**: flag assembly for convert, trim, extract, resize
-- **Progress parser**: ffmpeg stderr parsing, percentage calculation, ETA smoothing
-- **Capabilities**: encoder/filter/hwaccel detection
-- **Error translation**: ffmpeg error pattern matching
-- **Config**: default values, recent files dedup and cap
+Snapshot of coverage by area:
+
+- **CLI (`cmd/`)** -- flag parsing for `--theme`, `--dir` (directory vs file), error paths.
+- **App / config (`internal/app/`)** -- recent-files dedup and cap, config load/save defaults, initial-file startup path.
+- **ffmpeg (`internal/ffmpeg/`)** -- command builder (convert/trim/extract/resize + extras), capability parsing, ffprobe JSON parsing, runner lifecycle, progress/ETA smoothing, error translation, detect helpers.
+- **Preset catalog (`internal/preset/`)** -- option tables for video/audio/gif/compress presets.
+- **Screens (`internal/screens/*`)** -- filepicker, home, operations, settings (per-op form building + command assembly), progress, result, screen-router messages.
+- **UI (`internal/ui/`)** -- theme palette/style build, responsive size checks, help overlay layout, frame rendering.
+
+## Releasing
+
+The end-to-end release flow is a single command. See [`docs/release.sh`](docs/release.sh) for the script and [`docs/Makefile`](docs/Makefile) for the wrappers.
+
+```bash
+# Patch bump (v0.1.1 -> v0.1.2) -- default
+make -C docs release
+
+# Minor / major bumps
+make -C docs release-minor
+make -C docs release-major
+
+# Explicit version
+make -C docs release VERSION=v1.2.3
+
+# Sanity-check without tagging
+make -C docs pre-release
+```
+
+The script:
+
+1. Refuses to run on a dirty tree or off `main`.
+2. Computes the next semver from the latest `v*` tag (or accepts an explicit version).
+3. Runs `go test ./...`, `go vet ./...`, and -- when installed -- `goreleaser check` plus a non-publishing snapshot build.
+4. Builds an annotated tag whose body is the `git log` since the previous tag.
+5. Pushes the tag, which triggers [`.github/workflows/release.yml`](.github/workflows/release.yml) to run GoReleaser, cut a GitHub Release, and update the Homebrew tap.
+6. Tails the workflow with `gh run watch` when the GitHub CLI is installed.
 
 ## Future Roadmap
 
