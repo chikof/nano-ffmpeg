@@ -30,9 +30,19 @@ type Model struct {
 	height       int
 }
 
+// RunOptions controls runtime behavior for app startup.
+type RunOptions struct {
+	Theme string
+}
+
 // New creates the top-level app model.
-func New(info *ffmpeg.Info, caps *ffmpeg.Capabilities) Model {
+func New(info *ffmpeg.Info, caps *ffmpeg.Capabilities, opts RunOptions) Model {
 	cfg := LoadConfig()
+	theme := cfg.Theme
+	if opts.Theme != "" {
+		theme = opts.Theme
+	}
+	ui.SetTheme(theme)
 	homeScreen := home.New(info, caps, cfg.RecentFiles)
 	return Model{
 		ffmpegInfo: info,
@@ -193,13 +203,12 @@ func (m Model) resolveScreen(msg screens.NavigateMsg) screens.Screen {
 }
 
 // Run starts the TUI application.
-func Run(info *ffmpeg.Info) error {
+func Run(info *ffmpeg.Info, opts RunOptions) error {
 	caps, err := ffmpeg.ProbeCapabilities(info)
 	if err != nil {
 		return fmt.Errorf("failed to probe ffmpeg capabilities: %w", err)
 	}
-
-	model := New(info, caps)
+	model := New(info, caps, opts)
 	p := tea.NewProgram(model, tea.WithAltScreen())
 	_, err = p.Run()
 	return err

@@ -152,6 +152,13 @@ go build -o nano-ffmpeg .
 nano-ffmpeg
 ```
 
+Optional theme override for the current run:
+
+```bash
+nano-ffmpeg --theme dark
+nano-ffmpeg --theme light
+```
+
 That's it. The TUI guides you through everything:
 
 ```
@@ -269,12 +276,14 @@ Config is stored at `~/.config/nano-ffmpeg/config.json`:
 | Field | Default | Description |
 |-------|---------|-------------|
 | `default_output_dir` | `""` (same as input) | Where output files are saved |
-| `theme` | `"dark"` | Color theme |
+| `theme` | `"dark"` | Color theme: `dark` or `light` |
 | `recent_files` | `[]` | Last 10 files used (auto-populated) |
 | `hw_accel` | `"auto"` | Hardware acceleration: `auto`, `off`, `videotoolbox`, `nvenc`, `vaapi` |
 | `ffmpeg_path` | `""` (auto-detect) | Override ffmpeg binary path |
 
 Capabilities are cached separately at `~/.config/nano-ffmpeg/capabilities.json` and auto-invalidated when your ffmpeg version changes.
+
+If you pass `--theme dark|light`, it overrides the config theme for that run.
 
 ## Project Structure
 

@@ -30,6 +30,15 @@ export default function DocsPage() {
             </p>
             <CodeBlock lines={["$ nano-ffmpeg"]} />
             <p>
+              You can also force the UI theme for a single run:
+            </p>
+            <CodeBlock
+              lines={[
+                "$ nano-ffmpeg --theme dark",
+                "$ nano-ffmpeg --theme light",
+              ]}
+            />
+            <p>
               That&apos;s it. The TUI guides you through file selection, operation
               picking, settings configuration, and encoding. You need{" "}
               <Code>ffmpeg</Code> and <Code>ffprobe</Code> installed. For full
@@ -167,11 +176,14 @@ export default function DocsPage() {
             />
             <div className="mt-4 space-y-2">
               <Li><Code>default_output_dir</Code> — Where output files are saved (empty = same as input)</Li>
-              <Li><Code>theme</Code> — Color theme (currently: dark)</Li>
+              <Li><Code>theme</Code> — Color theme (<Code>dark</Code> or <Code>light</Code>)</Li>
               <Li><Code>recent_files</Code> — Last 10 files used (auto-populated)</Li>
               <Li><Code>hw_accel</Code> — Hardware acceleration: auto, off, videotoolbox, nvenc, vaapi</Li>
               <Li><Code>ffmpeg_path</Code> — Override ffmpeg binary path (empty = auto-detect)</Li>
             </div>
+            <p className="mt-4">
+              Passing <Code>--theme dark|light</Code> overrides the config theme for that run.
+            </p>
             <p className="mt-4">
               Capabilities are cached separately at{" "}
               <Code>~/.config/nano-ffmpeg/capabilities.json</Code> and

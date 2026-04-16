@@ -70,7 +70,7 @@ func (f *Frame) renderTopBar(breadcrumb string) string {
 
 	bar := lipgloss.NewStyle().
 		Width(f.Width).
-		Background(lipgloss.Color("#1E1B2E")).
+		Background(ColorTopBarBg).
 		Padding(0, 1).
 		Render(logo + crumb)
 
@@ -81,7 +81,7 @@ func (f *Frame) renderStatusLine(status string) string {
 	return lipgloss.NewStyle().
 		Width(f.Width).
 		Foreground(ColorDim).
-		Background(lipgloss.Color("#1A1A2E")).
+		Background(ColorStatusBarBg).
 		Padding(0, 1).
 		Render(status)
 }
@@ -104,7 +104,7 @@ func (f *Frame) renderBottomBar(hints []KeyHint) string {
 
 	return lipgloss.NewStyle().
 		Width(f.Width).
-		Background(lipgloss.Color("#1E1B2E")).
+		Background(ColorBottomBarBg).
 		Padding(0, 1).
 		Render(joined)
 }

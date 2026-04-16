@@ -307,7 +307,7 @@ func (m *Model) renderProgressBar() string {
 			bar.WriteString(lipgloss.NewStyle().Foreground(ui.ColorSecondary).Render("█"))
 		}
 	}
-	bar.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#2D3748")).Render(strings.Repeat("░", empty)))
+	bar.WriteString(lipgloss.NewStyle().Foreground(ui.ColorProgressEmpty).Render(strings.Repeat("░", empty)))
 
 	percentStr := fmt.Sprintf(" %5.1f%%", percent)
 	percentStyled := lipgloss.NewStyle().Foreground(ui.ColorText).Bold(true).Render(percentStr)
