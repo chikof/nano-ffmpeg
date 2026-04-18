@@ -49,13 +49,13 @@ func findBinary(name string) (string, error) {
 		return path, nil
 	}
 
-	if runtime.GOOS == "windows" {
-		return findNextToExecutable(name, ".exe")
+	if p, err := findNextToExecutable(name); err == nil {
+		return p, nil
 	}
 
 	// Fallback to common and keg-only Homebrew locations.
 	for _, p := range fallbackBinaryPaths(name) {
-		if fileExists(p) {
+		if _, err := exec.LookPath(p); err == nil {
 			return p, nil
 		}
 	}
@@ -103,26 +103,29 @@ func parseVersion(ffmpegPath string) (version, buildConfig string, err error) {
 	return version, buildConfig, nil
 }
 
-func findNextToExecutable(name, suffix string) (string, error) {
+func findNextToExecutable(name string) (string, error) {
 	exePath, err := os.Executable()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("could not determine executable path: %w", err)
 	}
 
-	exePath, err = filepath.EvalSymlinks(exePath)
-	if err != nil {
-		return "", err
+	if resolved, err := filepath.EvalSymlinks(exePath); err == nil {
+		exePath = resolved
 	}
 
-	candidate := filepath.Join(filepath.Dir(exePath), name+suffix)
+	candidate := filepath.Join(filepath.Dir(exePath), name)
+	if runtime.GOOS == "windows" {
+		candidate += ".exe"
+	}
+
 	if fileExists(candidate) {
 		return candidate, nil
 	}
 
-	return "", fmt.Errorf("not found next to executable")
+	return "", fmt.Errorf("%s not found next to executable (tried %s)", name, candidate)
 }
 
 func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
+	info, err := os.Stat(path)
+	return err == nil && info.Mode().IsRegular()
 }
